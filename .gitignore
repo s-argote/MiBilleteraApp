@@ -9,6 +9,9 @@ dist/
 web-build/
 expo-env.d.ts
 
+# Configuración de entorno (NO subirla)
+.env
+
 # Native
 .kotlin/
 *.orig.*
