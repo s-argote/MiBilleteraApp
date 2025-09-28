@@ -9,6 +9,7 @@ import { useAuthViewModel } from './src/viewmodels/AuthViewModel';
 import { LoginScreen } from './src/views/auth/LoginScreen';
 import { RegisterScreen } from './src/views/auth/RegisterScreen'; // Importado
 import { HomeScreen } from './src/views/dashboard/HomeScreen';
+import { WelcomeScreen } from './src/views/auth/WelcomeScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -16,6 +17,7 @@ const Stack = createNativeStackNavigator();
 function AuthStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
     </Stack.Navigator>

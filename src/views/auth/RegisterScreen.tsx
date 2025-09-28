@@ -1,16 +1,84 @@
-import React from 'react';
-import { View, Text, TextInput, Button, Alert, StyleSheet } from 'react-native';
+import React, {useEffect} from 'react';
+import { View, Text, TextInput, TouchableOpacity, Image, Alert, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useAuthViewModel } from '../../viewmodels/AuthViewModel';
 
 const styles = StyleSheet.create({
-    container: { padding: 20, flex: 1, justifyContent: 'center' },
-    title: { fontSize: 24, textAlign: 'center', marginBottom: 30, fontWeight: 'bold' },
-    input: { height: 50, borderColor: '#ccc', borderWidth: 1, marginBottom: 15, paddingHorizontal: 10, borderRadius: 5 },
-    loginText: { textAlign: 'center', marginTop: 15, color: '#007AFF' },
+  container: {
+    flex: 1,
+    backgroundColor: '#e1f5fe',
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 25,
+    paddingVertical: 40,
+  },
+  logo: {
+    width: 120,
+    height: 120,
+    resizeMode: 'contain',
+    alignSelf: 'center',
+    marginBottom: 30,
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  input: {
+    height: 50,
+    borderColor: '#ddd',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    backgroundColor: '#f9f9f9',
+    marginBottom: 15,
+    fontSize: 16,
+    color: '#000',
+  },
+  button: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  errorText: {
+    color: 'red',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  loginText: {
+    marginTop: 20,
+    textAlign: 'center',
+    color: '#666',
+  },
+  loginLink: {
+    color: '#007AFF',
+    fontWeight: 'bold',
+  },
 });
 
+
 export const RegisterScreen = ({ navigation }: any) => {
-    const { email, setEmail, password, setPassword, loading, error, handleRegister } = useAuthViewModel();
+    const { name, setName, email, setEmail, password, setPassword, loading, error, setError, handleRegister } = useAuthViewModel();
 
     React.useEffect(() => {
         if (error) {
@@ -18,40 +86,82 @@ export const RegisterScreen = ({ navigation }: any) => {
         }
     }, [error]);
 
+    const onPressRegister = () => {
+    if (!name || !email || !password) {
+      setError('Por favor completa todos los campos.');
+      return;
+    }
+
+    handleRegister()
+      .then(() => {
+        Alert.alert('¡Cuenta creada!', 'Ahora puedes iniciar sesión.');
+        navigation.navigate('Login');
+      })
+      .catch(() => {
+        // El error ya se maneja en el ViewModel
+      });
+  };
+
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>Crear Nueva Cuenta</Text>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <Image source={require('../../../assets/images/logo.png')} style={styles.logo} />
 
-            <TextInput
-                placeholder="Correo Electrónico"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                style={styles.input}
-            />
+        <View style={styles.card}>
+          <Text style={styles.title}>Crear Nueva Cuenta</Text>
 
-            <TextInput
-                placeholder="Contraseña (mín. 6 caracteres)"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                style={styles.input}
-            />
+          <TextInput
+            placeholder="Nombre completo"
+            value={name}
+            onChangeText={setName}
+            style={[styles.input, { color: '#000' }]}
+            placeholderTextColor="#999"
+          />
 
-            <Button
-                title={loading ? 'CREANDO CUENTA...' : 'REGISTRARSE'}
-                onPress={handleRegister}
-                disabled={loading}
-                color="#007AFF"
-            />
+          <TextInput
+            placeholder="Correo electrónico"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            style={[styles.input, { color: '#000' }]}
+            placeholderTextColor="#999"
+          />
 
-            <Text
-                onPress={() => navigation.navigate('Login')}
-                style={styles.loginText}
-            >
-                ¿Ya tienes cuenta? Inicia Sesión
+          <TextInput
+            placeholder="Contraseña (mín. 6 caracteres)"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            style={[styles.input, { color: '#000' }]}
+            placeholderTextColor="#999"
+          />
+
+          {!!error && <Text style={styles.errorText}>{error}</Text>}
+
+          <TouchableOpacity
+            style={styles.button}
+            onPress={onPressRegister}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Registrarme</Text>
+            )}
+          </TouchableOpacity>
+
+          <Text style={styles.loginText}>
+            ¿Ya tienes cuenta?{' '}
+            <Text style={styles.loginLink} onPress={() => navigation.navigate('Login')}>
+              Inicia sesión
             </Text>
+          </Text>
         </View>
-    );
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
 };
