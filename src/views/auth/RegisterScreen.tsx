@@ -1,92 +1,20 @@
-import React, {useEffect} from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Image, Alert, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useAuthViewModel } from '../../viewmodels/AuthViewModel';
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#e1f5fe',
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 25,
-    paddingVertical: 40,
-  },
-  logo: {
-    width: 120,
-    height: 120,
-    resizeMode: 'contain',
-    alignSelf: 'center',
-    marginBottom: 30,
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  input: {
-    height: 50,
-    borderColor: '#ddd',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    backgroundColor: '#f9f9f9',
-    marginBottom: 15,
-    fontSize: 16,
-    color: '#000',
-  },
-  button: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  errorText: {
-    color: 'red',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  loginText: {
-    marginTop: 20,
-    textAlign: 'center',
-    color: '#666',
-  },
-  loginLink: {
-    color: '#007AFF',
-    fontWeight: 'bold',
-  },
-});
-
+import { RegisterStyles as styles } from '../../styles/RegisterStyles';
 
 export const RegisterScreen = ({ navigation }: any) => {
-    const { name, setName, email, setEmail, password, setPassword, loading, error, setError, handleRegister } = useAuthViewModel();
+  const { name, setName, email, setEmail, password, setPassword, loading, error, setError, handleRegister } = useAuthViewModel();
 
-    React.useEffect(() => {
-        if (error) {
-            Alert.alert('Error de Registro', error);
-        }
-    }, [error]);
+  const [showPassword, setShowPassword] = React.useState(false); // controla visibilidad de la contraseña
 
-    const onPressRegister = () => {
+  React.useEffect(() => {
+    if (error) {
+      Alert.alert('Error de Registro', error);
+    }
+  }, [error]);
+
+  const onPressRegister = () => {
     if (!name || !email || !password) {
       setError('Por favor completa todos los campos.');
       return;
@@ -95,14 +23,14 @@ export const RegisterScreen = ({ navigation }: any) => {
     handleRegister()
       .then(() => {
         Alert.alert('¡Cuenta creada!', 'Ahora puedes iniciar sesión.');
-        navigation.navigate('Login');
+        navigation.navigate('Home');
       })
       .catch(() => {
         // El error ya se maneja en el ViewModel
       });
   };
 
-    return (
+  return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -131,14 +59,22 @@ export const RegisterScreen = ({ navigation }: any) => {
             placeholderTextColor="#999"
           />
 
-          <TextInput
-            placeholder="Contraseña (mín. 6 caracteres)"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            style={[styles.input, { color: '#000' }]}
-            placeholderTextColor="#999"
-          />
+          <View style={styles.passwordContainer}>
+            <TextInput
+              placeholder="Contraseña (mín. 6 caracteres)"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              style={styles.passwordInput}
+              placeholderTextColor="#999"
+            />
+
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
+              <Text style={{ fontSize: 16 }}>
+                {showPassword ? '🙈' : '👁'}
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           {!!error && <Text style={styles.errorText}>{error}</Text>}
 
@@ -156,12 +92,12 @@ export const RegisterScreen = ({ navigation }: any) => {
 
           <Text style={styles.loginText}>
             ¿Ya tienes cuenta?{' '}
-            <Text style={styles.loginLink} onPress={() => navigation.navigate('Login')}>
+            <Text style={styles.loginLink} onPress={() => navigation.navigate('Iniciar Sesión')}>
               Inicia sesión
             </Text>
           </Text>
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAvoidingView >
   );
 };

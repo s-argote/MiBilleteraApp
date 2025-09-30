@@ -12,15 +12,7 @@
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true,
-       "env": {
-        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyCMp5wLmHwTfTwZgiOoIOZL8Ay_I1aYL2s",
-        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "mibilleteraapp-5ac26.firebaseapp.com",
-        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "mibilleteraapp-5ac26",
-        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "mibilleteraapp-5ac26.appspot.com",
-        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "810979980515",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:810979980515:web:ebaf673d7cab3b7e27c1d6"
-      }
+      "autoIncrement": true
     }
   },
   "submit": {
