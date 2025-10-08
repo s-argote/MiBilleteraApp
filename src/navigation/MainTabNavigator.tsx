@@ -2,7 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { HomeScreen } from '../views/dashboard/HomeScreen';
 import { CategoriesStack } from '../navigation/CategoriesStack';
-import { TransactionsScreen } from '../views/transactions/TransactionsScreen';
+import { TransactionsStack } from '../navigation/TransactionsStack';
 import { AccountScreen } from '../views/account/AccountScreen';
 import { AntDesign, MaterialIcons, FontAwesome } from '@expo/vector-icons';
 
@@ -55,7 +55,7 @@ export const MainTabNavigator = () => {
             />
             <Tab.Screen
                 name="Mis Transacciones"
-                component={TransactionsScreen}
+                component={TransactionsStack}
                 options={{
                     tabBarIcon: ({ color, size }) => (
                         <FontAwesome name="exchange" size={size} color={color} />
