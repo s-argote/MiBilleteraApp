@@ -1,75 +1,61 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { User } from 'firebase/auth';
-
-// --- Importaciones de tu estructura MVVM ---
-import { AuthService } from './src/services/AuthService';
-import { useAuthViewModel } from './src/viewmodels/AuthViewModel';
-import { LoginScreen } from './src/views/auth/LoginScreen';
-import { RegisterScreen } from './src/views/auth/RegisterScreen'; // Importado
-import { HomeScreen } from './src/views/dashboard/HomeScreen';
 import { WelcomeScreen } from './src/views/auth/WelcomeScreen';
+import { LoginScreen } from './src/views/auth/LoginScreen';
+import { RegisterScreen } from './src/views/auth/RegisterScreen';
+import { MainTabNavigator } from './src/navigation/MainTabNavigator';
+import { AuthService } from './src/services/AuthService';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 
-const Stack = createNativeStackNavigator();
+const App = () => {
+  const [user, setUser] = useState<{ uid: string } | null>(null);
+  const [loading, setLoading] = useState(true);
 
-// Stack de navegación para usuarios NO autenticados (Login y Registro)
-function AuthStack() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Inicio" component={WelcomeScreen} />
-      <Stack.Screen name="Iniciar Sesión" component={LoginScreen} />
-      <Stack.Screen name="Registro" component={RegisterScreen} />
-    </Stack.Navigator>
-  );
-}
-
-// Stack de navegación para usuarios AUTENTICADOS (Home/Dashboard)
-function AppStack({ handleLogout }: { handleLogout: () => Promise<void> }) {
-  return (
-    <Stack.Navigator>
-      <Stack.Screen name="Home" options={{ title: 'Mi Billetera App' }}>
-        {/* Pasa handleLogout a la HomeScreen */}
-        {props => <HomeScreen {...props} handleLogout={handleLogout} />}
-      </Stack.Screen>
-      {/* Aquí irían las otras pantallas: Categories, Transactions, etc. */}
-    </Stack.Navigator>
-  );
-}
-
-// Componente principal de la aplicación
-export default function App() {
-  const [user, setUser] = useState<User | null>(null);
-  const [initializing, setInitializing] = useState(true);
-
-  // Instancia el View Model para obtener handleLogout (Regla de Hooks)
-  const { handleLogout } = useAuthViewModel();
-
-  // Observador de Firebase Auth
   useEffect(() => {
-    // onAuthStateChanged se dispara cuando el usuario inicia, cierra o se registra
-    const subscriber = AuthService.onAuthStateChanged((user) => {
-      setUser(user);
-      if (initializing) setInitializing(false);
+    const unsubscribe = AuthService.onAuthStateChanged((firebaseUser) => {
+      setUser(firebaseUser ? { uid: firebaseUser.uid } : null);
+      setLoading(false);
     });
 
-    // Deja de escuchar al desmontar
-    return subscriber;
+    return unsubscribe;
   }, []);
 
-  if (initializing) {
-    // Retorna nulo o un componente de carga mientras Firebase verifica la sesión
-    return null;
+  if (loading) {
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
   }
 
   return (
     <NavigationContainer>
-      {/* Renderizado condicional */}
       {user ? (
-        <AppStack handleLogout={handleLogout} /> // Si hay usuario, Stack Principal
+        <MainTabNavigator />
       ) : (
-        <AuthStack /> // Si no hay usuario, Stack de Autenticación
+        // Stack para flujo de autenticación
+        <AuthStack />
       )}
     </NavigationContainer>
   );
-}
+};
+
+// Stack interno para login/register
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+const Stack = createNativeStackNavigator();
+
+const AuthStack = () => {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Bienvenida" component={WelcomeScreen} />
+      <Stack.Screen name="Iniciar Sesión" component={LoginScreen} />
+      <Stack.Screen name="Registro" component={RegisterScreen} />
+    </Stack.Navigator>
+  );
+};
+
+const styles = StyleSheet.create({
+  loader: { flex: 1, justifyContent: 'center', alignItems: 'center' }
+});
+
+export default App;
