@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import {
-    View,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    StyleSheet,
-    Alert,
-    ScrollView,
-    SafeAreaView,
-} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useCategoryViewModel } from '../../viewmodels/CategoryViewModel';
+
+const COLOR_PALETTE = [
+    '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57',
+    '#FF9FF3', '#54A0FF', '#5F27CD', '#00D2D3', '#FF9F43',
+    '#10AC84', '#EE5A24'
+];
 
 export const EditCategoriesScreen = ({ route, navigation }: any) => {
-    const { category } = route.params; // Recibimos la categoría desde la navegación
+    const { category } = route.params;
+    const { updateCategory } = useCategoryViewModel();
 
     const [name, setName] = useState(category.name);
     const [color, setColor] = useState(category.color);
@@ -20,15 +20,20 @@ export const EditCategoriesScreen = ({ route, navigation }: any) => {
         navigation.setOptions({ title: 'Editar Categoría' });
     }, [navigation]);
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!name.trim()) {
             Alert.alert('Nombre requerido', 'Por favor ingresa un nombre.');
             return;
         }
 
-        // Aquí iría la actualización en Firebase (más adelante)
-        Alert.alert('Éxito', 'Categoría actualizada (solo visual por ahora)');
-        navigation.goBack();
+        try {
+            await updateCategory(category.id, { name, color });
+            Alert.alert('Éxito', 'Categoría actualizada correctamente.');
+            navigation.goBack();
+        } catch (error) {
+            Alert.alert('Error', 'No se pudo actualizar la categoría.');
+            console.error(error);
+        }
     };
 
     return (
@@ -45,12 +50,19 @@ export const EditCategoriesScreen = ({ route, navigation }: any) => {
                 />
 
                 <Text style={styles.label}>Color</Text>
-                <View style={styles.colorPreview}>
-                    <View style={[styles.colorBox, { backgroundColor: color }]} />
-                    <Text style={styles.colorText}>{color}</Text>
-                </View>
-
-                <Text style={styles.hint}>El selector de color se agregará más adelante.</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.paletteScroll}>
+                    {COLOR_PALETTE.map((paletteColor) => (
+                        <TouchableOpacity
+                            key={paletteColor}
+                            style={[
+                                styles.colorOption,
+                                { backgroundColor: paletteColor },
+                                color === paletteColor && styles.colorOptionSelected,
+                            ]}
+                            onPress={() => setColor(paletteColor)}
+                        />
+                    ))}
+                </ScrollView>
 
                 <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
                     <Text style={styles.saveButtonText}>Guardar Cambios</Text>
@@ -90,25 +102,20 @@ const styles = StyleSheet.create({
         fontSize: 16,
         marginBottom: 20,
     },
-    colorPreview: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 12,
+    paletteScroll: {
+        paddingVertical: 10,
+        marginBottom: 20,
     },
-    colorBox: {
-        width: 32,
-        height: 32,
-        borderRadius: 6,
-        marginRight: 12,
+    colorOption: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        marginHorizontal: 8,
+        borderWidth: 2,
+        borderColor: 'transparent',
     },
-    colorText: {
-        fontSize: 14,
-        color: '#666',
-    },
-    hint: {
-        fontSize: 12,
-        color: '#999',
-        marginBottom: 24,
+    colorOptionSelected: {
+        borderColor: '#007AFF',
     },
     saveButton: {
         backgroundColor: '#007AFF',

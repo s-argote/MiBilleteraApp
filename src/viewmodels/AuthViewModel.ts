@@ -20,11 +20,11 @@ export const useAuthViewModel = () => {
     const handleError = (e: any, defaultMessage: string) => {
         console.error(e);
         if (e.code === 'auth/email-already-in-use') {
-      setError('Este correo ya está registrado.');
-    } else {
-        // Extrae el código de error de Firebase para un mensaje más limpio
-        setError(e.code ? `Error: ${e.code.replace('auth/', '').replace(/-/g, ' ')}` : defaultMessage);
-    }
+            setError('Este correo ya está registrado.');
+        } else {
+            // Extrae el código de error de Firebase para un mensaje más limpio
+            setError(e.code ? `Error: ${e.code.replace('auth/', '').replace(/-/g, ' ')}` : defaultMessage);
+        }
     };
 
     /**
@@ -51,13 +51,14 @@ export const useAuthViewModel = () => {
         setError(null);
         try {
             const user = await AuthService.register(email, password);
-      // Guardar el nombre en Firestore
+            // Guardar el nombre en Firestore
             await setDoc(doc(db, 'users', user.uid), {
                 name,
                 email,
                 createdAt: new Date()
             });
             clearForm();
+
         } catch (e) {
             handleError(e, 'Error desconocido al registrarse');
             throw e; // Para que el componente sepa si falló

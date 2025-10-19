@@ -1,29 +1,29 @@
 import React, { useState } from 'react';
-import {
-    View,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    StyleSheet,
-    Alert,
-    ScrollView,
-    SafeAreaView,
-} from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useCategoryViewModel } from '../../viewmodels/CategoryViewModel';
+
+const COLOR_PALETTE = [
+    '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57',
+    '#FF9FF3', '#54A0FF', '#5F27CD', '#00D2D3', '#FF9F43',
+    '#10AC84', '#EE5A24'
+];
 
 export const AddCategoriesScreen = ({ navigation }: any) => {
     const [name, setName] = useState('');
-    const [color, setColor] = useState('#4ECDC4'); // color por defecto
+    const [color, setColor] = useState(COLOR_PALETTE[0]); // Color por defecto
 
-    const handleSave = () => {
+    const { addCategory } = useCategoryViewModel();
+
+    const handleSave = async () => {
         if (!name.trim()) {
-            Alert.alert('Nombre requerido', 'Por favor ingresa un nombre para la categoría.');
+            Alert.alert('Nombre requerido', 'Por favor ingresa un nombre.');
             return;
         }
 
-        // Aquí iría la lógica de guardar (más adelante con Firebase)
-        Alert.alert('Éxito', 'Categoría creada (solo visual por ahora)');
-        navigation.goBack(); // Regresa a la lista
+        await addCategory(name, color);
+        Alert.alert('Éxito', 'Categoría guardada correctamente.');
+        navigation.goBack();
     };
 
     return (
@@ -41,13 +41,19 @@ export const AddCategoriesScreen = ({ navigation }: any) => {
                 />
 
                 <Text style={styles.label}>Color</Text>
-                <View style={styles.colorPreview}>
-                    <View style={[styles.colorBox, { backgroundColor: color }]} />
-                    <Text style={styles.colorText}>{color}</Text>
-                </View>
-
-                {/* Por ahora, no implementamos selector de color */}
-                <Text style={styles.hint}>Más adelante podrás elegir un color.</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.paletteScroll}>
+                    {COLOR_PALETTE.map((paletteColor) => (
+                        <TouchableOpacity
+                            key={paletteColor}
+                            style={[
+                                styles.colorOption,
+                                { backgroundColor: paletteColor },
+                                color === paletteColor && styles.colorOptionSelected,
+                            ]}
+                            onPress={() => setColor(paletteColor)}
+                        />
+                    ))}
+                </ScrollView>
 
                 <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
                     <Text style={styles.saveButtonText}>Guardar Categoría</Text>
@@ -87,25 +93,20 @@ const styles = StyleSheet.create({
         fontSize: 16,
         marginBottom: 20,
     },
-    colorPreview: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 12,
+    paletteScroll: {
+        paddingVertical: 10,
+        marginBottom: 20,
     },
-    colorBox: {
-        width: 32,
-        height: 32,
-        borderRadius: 6,
-        marginRight: 12,
+    colorOption: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        marginHorizontal: 8,
+        borderWidth: 2,
+        borderColor: 'transparent',
     },
-    colorText: {
-        fontSize: 14,
-        color: '#666',
-    },
-    hint: {
-        fontSize: 12,
-        color: '#999',
-        marginBottom: 24,
+    colorOptionSelected: {
+        borderColor: '#007AFF',
     },
     saveButton: {
         backgroundColor: '#007AFF',

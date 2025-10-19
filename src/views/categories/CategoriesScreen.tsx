@@ -1,60 +1,68 @@
 import React, { useState } from 'react';
-import {
-    View,
-    Text,
-    FlatList,
-    TouchableOpacity,
-    StyleSheet,
-    SafeAreaView,
-    Modal,
-    Alert,
-} from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Modal, Alert, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCategoryViewModel } from '../../viewmodels/CategoryViewModel';
 
-const mockCategories = [
-    { id: '1', name: 'Alimentación', color: '#FF6B6B' },
-    { id: '2', name: 'Transporte', color: '#4ECDC4' },
-    { id: '3', name: 'Entretenimiento', color: '#45B7D1' },
-    { id: '4', name: 'Salud', color: '#96CEB4' },
-    { id: '5', name: 'Ropa', color: '#FFEAA7' },
-    { id: '6', name: 'Otros', color: '#DDA0DD' },
-];
-
+/**
+ * Pantalla principal de Gestión de Categorías.
+ * Muestra una lista de categorías y permite agregar, editar o eliminar.
+ */
 export const CategoriesScreen = ({ navigation }: any) => {
     const [selectedCategory, setSelectedCategory] = useState<any>(null);
     const [menuVisible, setMenuVisible] = useState(false);
 
+    const { categories, loading, deleteCategory, loadCategories } = useCategoryViewModel();
+
+    // Recarga las categorías cada vez que la pantalla gana el foco.
+    useFocusEffect(
+        React.useCallback(() => {
+            loadCategories();
+        }, [])
+    );
+
+    /**
+     * Abre el menú de opciones para una categoría específica.
+     * @param {Object} category - Categoría seleccionada.
+     */
     const openMenu = (category: any) => {
         setSelectedCategory(category);
         setMenuVisible(true);
     };
 
+    /**
+     * Cierra el menú de opciones.
+     */
     const closeMenu = () => {
         setMenuVisible(false);
         setSelectedCategory(null);
     };
 
+    /**
+     * Navega a la pantalla de edición de la categoría seleccionada.
+     */
     const handleEdit = () => {
         if (!selectedCategory) return;
         closeMenu();
         navigation.navigate('Editar Categoría', { category: selectedCategory });
     };
 
-    const handleDelete = () => {
+    /**
+     * Muestra un cuadro de diálogo para confirmar la eliminación de la categoría.
+     */
+    const handleDelete = async () => {
         if (!selectedCategory) return;
         Alert.alert(
             'Eliminar categoría',
             `¿Estás seguro de eliminar "${selectedCategory.name}"?`,
             [
-                {
-                    text: 'Cancelar',
-                    style: 'cancel',
-                },
+                { text: 'Cancelar', style: 'cancel' },
                 {
                     text: 'Eliminar',
                     style: 'destructive',
-                    onPress: () => {
-                        Alert.alert('Eliminado', `${selectedCategory.name} fue eliminada.`);
+                    onPress: async () => {
+                        await deleteCategory(selectedCategory.id);
                         closeMenu();
                     },
                 },
@@ -62,16 +70,16 @@ export const CategoriesScreen = ({ navigation }: any) => {
         );
     };
 
+    /**
+     * Renderiza cada ítem de la lista.
+     */
     const renderItem = ({ item }: { item: any }) => (
-        <View style={styles.categoryItem}>
+        <View key={item.id} style={styles.categoryItem}>
+            {/* Cuadro de color */}
             <View style={[styles.colorBox, { backgroundColor: item.color }]} />
             <Text style={styles.categoryName}>{item.name}</Text>
-
-            {/* Botón de tres puntos */}
-            <TouchableOpacity
-                style={styles.menuButton}
-                onPress={() => openMenu(item)}
-            >
+            {/* Botón de menú */}
+            <TouchableOpacity style={styles.menuButton} onPress={() => openMenu(item)}>
                 <MaterialIcons name="more-vert" size={24} color="#888" />
             </TouchableOpacity>
         </View>
@@ -79,6 +87,7 @@ export const CategoriesScreen = ({ navigation }: any) => {
 
     return (
         <SafeAreaView style={styles.container}>
+            {/* Encabezado */}
             <View style={styles.header}>
                 <Text style={styles.title}>Mis Categorías</Text>
                 <TouchableOpacity
@@ -89,25 +98,27 @@ export const CategoriesScreen = ({ navigation }: any) => {
                 </TouchableOpacity>
             </View>
 
-            <FlatList
-                data={mockCategories}
-                renderItem={renderItem}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.list}
-                showsVerticalScrollIndicator={false}
-            />
+            {/* Lista de categorías */}
+            {loading ? (
+                <ActivityIndicator size="large" color="#007AFF" style={{ marginTop: 40 }} />
+            ) : (
+                <FlatList
+                    data={categories}
+                    renderItem={renderItem}
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={styles.list}
+                    showsVerticalScrollIndicator={false}
+                />
+            )}
 
             {/* Menú contextual */}
             <Modal
                 visible={menuVisible}
-                transparent={true}
+                transparent
                 animationType="fade"
                 onRequestClose={closeMenu}
             >
-                <TouchableOpacity
-                    style={styles.modalOverlay}
-                    onPress={closeMenu}
-                >
+                <TouchableOpacity style={styles.modalOverlay} onPress={closeMenu}>
                     <View style={styles.menuContainer}>
                         <TouchableOpacity style={styles.menuOption} onPress={handleEdit}>
                             <Text style={styles.menuOptionText}>Editar</Text>
@@ -122,6 +133,7 @@ export const CategoriesScreen = ({ navigation }: any) => {
     );
 };
 
+// Estilos
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -136,7 +148,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
-        paddingTop: 60,
+
     },
     title: {
         fontSize: 20,

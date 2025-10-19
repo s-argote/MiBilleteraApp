@@ -48,7 +48,7 @@ export const MainTabNavigator = () => {
                 component={CategoriesStack}
                 options={{
                     tabBarIcon: ({ color, size }) => (
-                        <MaterialIcons name="category" size={size} color={color} />
+                        <FontAwesome name="list-ul" size={size} color={color} />
                     ),
                     tabBarLabel: 'Categorías',
                 }}
@@ -58,7 +58,7 @@ export const MainTabNavigator = () => {
                 component={TransactionsStack}
                 options={{
                     tabBarIcon: ({ color, size }) => (
-                        <FontAwesome name="exchange" size={size} color={color} />
+                        <FontAwesome name="dollar" size={size} color={color} />
                     ),
                     tabBarLabel: 'Transacciones',
                 }}

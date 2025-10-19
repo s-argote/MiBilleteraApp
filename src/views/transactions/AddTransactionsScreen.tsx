@@ -1,15 +1,6 @@
 import React, { useState } from 'react';
-import {
-    View,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    StyleSheet,
-    Alert,
-    ScrollView,
-    SafeAreaView,
-    Platform,
-} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker'; // Se asume que esta librería está instalada
 import { Picker } from '@react-native-picker/picker'; // Se asume que esta librería está instalada
 import { MaterialIcons } from '@expo/vector-icons';

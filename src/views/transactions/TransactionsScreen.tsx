@@ -1,15 +1,6 @@
 import React, { useState } from 'react';
-import {
-    View,
-    Text,
-    FlatList,
-    TouchableOpacity,
-    StyleSheet,
-    SafeAreaView,
-    Modal,
-    Alert,
-    Image,
-} from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Modal, Alert, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, AntDesign } from '@expo/vector-icons'; // AntDesign ya no es necesario, usaremos MaterialIcons para 'add'
 
 // ... (mockTransactions se mantiene igual)
@@ -195,7 +186,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
-        paddingTop: 60,
     },
     title: {
         fontSize: 20, // Ajustado para coincidir con CategoriesScreen
@@ -263,7 +253,7 @@ const styles = StyleSheet.create({
         marginLeft: 4,
     },
     // 4. Se elimina el estilo floatingButton
-    
+
     modalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.5)',

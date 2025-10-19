@@ -23,7 +23,6 @@ export const RegisterScreen = ({ navigation }: any) => {
     handleRegister()
       .then(() => {
         Alert.alert('¡Cuenta creada!', 'Ahora puedes iniciar sesión.');
-        navigation.navigate('Home');
       })
       .catch(() => {
         // El error ya se maneja en el ViewModel
