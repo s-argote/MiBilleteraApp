@@ -1,158 +1,176 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {View,Text,TextInput,TouchableOpacity,StyleSheet,Alert,ScrollView,Platform} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import DateTimePicker from '@react-native-community/datetimepicker'; // Se asume que esta librería está instalada
-import { Picker } from '@react-native-picker/picker'; // Se asume que esta librería está instalada
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { Picker } from '@react-native-picker/picker';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useTransactionViewModel } from '../../viewmodels/TransactionViewModel';
+import { useCategoryViewModel } from '../../viewmodels/CategoryViewModel';
 
-// Mocks para los selectores
+// 👇 IMPORTA getAuth para obtener el userId
+import { getAuth } from 'firebase/auth';
+
+import { Transaction } from '../../models/Transaction';
+
 const transactionTypes = ['Ingreso', 'Gasto'];
-const mockCategories = [
-    { id: '1', name: 'Alimentación' },
-    { id: '2', name: 'Transporte' },
-    { id: '3', name: 'Entretenimiento' },
-    { id: '4', name: 'Salud' },
-    { id: '5', name: 'Ropa' },
-    { id: '6', name: 'Otros' },
-];
 
 export const AddTransactionsScreen = ({ navigation }: any) => {
-    const [type, setType] = useState('Gasto'); // Por defecto 'Gasto'
-    const [category, setCategory] = useState(mockCategories[0].name);
-    const [title, setTitle] = useState('');
-    const [amount, setAmount] = useState('');
-    const [date, setDate] = useState(new Date());
-    const [showDatePicker, setShowDatePicker] = useState(false);
-    const [imageUri, setImageUri] = useState<string | null>(null); // Campo opcional
+  const { addTransaction } = useTransactionViewModel();
+  const { categories, loading: categoriesLoading } = useCategoryViewModel();
 
-    const handleDateChange = (event: any, selectedDate: Date | undefined) => {
-        const currentDate = selectedDate || date;
-        setShowDatePicker(Platform.OS === 'ios');
-        setDate(currentDate);
-    };
+  const [type, setType] = useState<'Ingreso' | 'Gasto'>('Gasto');
+  const [category, setCategory] = useState<string>('');
+  const [title, setTitle] = useState('');
+  const [amount, setAmount] = useState('');
+  const [date, setDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [imageUri, setImageUri] = useState<string | null>(null);
 
-    // Lógica para adjuntar imagen (simulada por ahora)
-    const handleImageAttach = () => {
-        Alert.alert('Funcionalidad Pendiente', 'La selección de imagen se implementará más adelante.');
-        // Aquí iría la lógica para abrir la galería o cámara
-        setImageUri('simulated-uri');
-    };
+  // Inicializa la categoría con la primera disponible
+  useEffect(() => {
+    if (categories.length > 0 && !category) {
+      setCategory(categories[0].name);
+    }
+  }, [categories, category]);
 
-    // RF11: Acción del botón "Guardar"
-    const handleSave = () => {
-        const parsedAmount = parseFloat(amount.replace(',', '.'));
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    const currentDate = selectedDate || date;
+    setShowDatePicker(Platform.OS === 'ios');
+    setDate(currentDate);
+  };
 
-        if (!title.trim() || !amount.trim() || isNaN(parsedAmount) || parsedAmount <= 0) {
-            Alert.alert('Campos requeridos', 'Por favor, completa el título y un monto válido.');
-            return;
-        }
+  const handleImageAttach = () => {
+    Alert.alert('Funcionalidad Pendiente', 'La selección de imagen se implementará más adelante.');
+    setImageUri('https://via.placeholder.com/50/4ECDC4/FFFFFF?text=IMG');
+  };
 
-        const newTransaction = {
-            id: Date.now().toString(), // Generar un ID simple
-            title: title.trim(),
-            amount: type === 'Gasto' ? -parsedAmount : parsedAmount,
-            type,
-            date: date.toISOString().split('T')[0],
-            category,
-            image: imageUri || '',
-        };
+  const handleSave = async () => {
+    const cleanAmount = amount.replace(',', '.');
+    const parsedAmount = parseFloat(cleanAmount);
 
-        // Aquí iría la lógica de guardar en la base de datos (más adelante)
-        console.log('Transacción a guardar:', newTransaction);
+    if (!title.trim()) {
+      Alert.alert('Título requerido', 'Por favor ingresa un título.');
+      return;
+    }
+    if (!amount.trim() || isNaN(parsedAmount) || parsedAmount <= 0) {
+      Alert.alert('Monto inválido', 'Por favor ingresa un monto válido mayor a 0.');
+      return;
+    }
 
-        Alert.alert('Éxito', `${type} registrado con éxito.`);
-        navigation.goBack(); // Regresa a la lista
-    };
+    try {
+      // 👇 Obtiene el userId
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (!user) {
+        Alert.alert('Error', 'No se pudo obtener el usuario. Por favor inicia sesión nuevamente.');
+        return;
+      }
 
-    return (
-        <SafeAreaView style={styles.container}>
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                <Text style={styles.title}>Registrar {type}</Text>
+      // 👇 Crea el objeto con userId
+      const newTransaction: Omit<Transaction, 'id'> = {
+        title: title.trim(),
+        amount: type === 'Gasto' ? -parsedAmount : parsedAmount,
+        type,
+        date: date.toISOString().split('T')[0],
+        category,
+        image: imageUri || '',
+        userId: user.uid, // ✅ Incluido
+      };
 
-                {/* Tipo de Transacción (Ingreso/Gasto) */}
-                <Text style={styles.label}>Tipo</Text>
-                <View style={styles.pickerContainer}>
-                    <Picker
-                        selectedValue={type}
-                        onValueChange={(itemValue) => setType(itemValue)}
-                        style={styles.picker}
-                        mode="dropdown"
-                    >
-                        {transactionTypes.map((t) => (
-                            <Picker.Item key={t} label={t} value={t} />
-                        ))}
-                    </Picker>
-                </View>
+      await addTransaction(newTransaction);
 
-                {/* Categoría */}
-                <Text style={styles.label}>Categoría</Text>
-                <View style={styles.pickerContainer}>
-                    <Picker
-                        selectedValue={category}
-                        onValueChange={(itemValue) => setCategory(itemValue)}
-                        style={styles.picker}
-                        mode="dropdown"
-                    >
-                        {mockCategories.map((c) => (
-                            <Picker.Item key={c.id} label={c.name} value={c.name} />
-                        ))}
-                    </Picker>
-                </View>
+      Alert.alert('Éxito', `${type} registrado con éxito.`);
+      navigation.goBack();
+    } catch (error) {
+      console.error('Error al guardar transacción:', error);
+      Alert.alert('Error', 'No se pudo guardar la transacción. Inténtalo de nuevo.');
+    }
+  };
 
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.title}>Registrar {type}</Text>
 
-                {/* Título */}
-                <Text style={styles.label}>Título / Descripción</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Ej: Pago de renta, Compra de café"
-                    value={title}
-                    onChangeText={setTitle}
-                    maxLength={50}
-                />
+        <Text style={styles.label}>Tipo</Text>
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={type}
+            onValueChange={(itemValue) => setType(itemValue)}
+            style={styles.picker}
+          >
+            {transactionTypes.map((t) => (
+              <Picker.Item key={t} label={t} value={t} />
+            ))}
+          </Picker>
+        </View>
 
-                {/* Monto */}
-                <Text style={styles.label}>Monto</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="0.00"
-                    value={amount}
-                    onChangeText={setAmount}
-                    keyboardType="numeric"
-                />
+        <Text style={styles.label}>Categoría</Text>
+        <View style={styles.pickerContainer}>
+          {categoriesLoading ? (
+            <Text>Cargando categorías...</Text>
+          ) : (
+            <Picker
+              selectedValue={category}
+              onValueChange={(itemValue) => setCategory(itemValue)}
+              style={styles.picker}
+            >
+              {categories.map((c) => (
+                <Picker.Item key={c.id} label={c.name} value={c.name} />
+              ))}
+              <Picker.Item label="Otros" value="Otros" />
+            </Picker>
+          )}
+        </View>
 
-                {/* Fecha */}
-                <Text style={styles.label}>Fecha</Text>
-                <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.dateButton}>
-                    <MaterialIcons name="calendar-today" size={20} color="#007AFF" />
-                    <Text style={styles.dateText}>{date.toLocaleDateString()}</Text>
-                </TouchableOpacity>
+        <Text style={styles.label}>Título / Descripción</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Ej: Pago de renta, Compra de café"
+          value={title}
+          onChangeText={setTitle}
+          maxLength={50}
+        />
 
-                {showDatePicker && (
-                    <DateTimePicker
-                        testID="datePicker"
-                        value={date}
-                        mode="date"
-                        display="default"
-                        onChange={handleDateChange}
-                    />
-                )}
+        <Text style={styles.label}>Monto</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="0.00"
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="numeric"
+        />
 
-                {/* Archivo Imagen (Opcional) */}
-                <Text style={styles.label}>Recibo o Comprobante (Opcional)</Text>
-                <TouchableOpacity style={styles.imageButton} onPress={handleImageAttach}>
-                    <MaterialIcons name="attach-file" size={20} color="#fff" />
-                    <Text style={styles.imageButtonText}>
-                        {imageUri ? 'Recibo Adjunto' : 'Adjuntar Imagen'}
-                    </Text>
-                </TouchableOpacity>
-                {imageUri && <Text style={styles.hint}>Imagen simulada adjunta.</Text>}
+        <Text style={styles.label}>Fecha</Text>
+        <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.dateButton}>
+          <MaterialIcons name="calendar-today" size={20} color="#007AFF" />
+          <Text style={styles.dateText}>{date.toLocaleDateString()}</Text>
+        </TouchableOpacity>
 
-                <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                    <Text style={styles.saveButtonText}>Guardar {type}</Text>
-                </TouchableOpacity>
-            </ScrollView>
-        </SafeAreaView>
-    );
+        {showDatePicker && (
+          <DateTimePicker
+            value={date}
+            mode="date"
+            display="default"
+            onChange={handleDateChange}
+          />
+        )}
+
+        <Text style={styles.label}>Recibo o Comprobante (Opcional)</Text>
+        <TouchableOpacity style={styles.imageButton} onPress={handleImageAttach}>
+          <MaterialIcons name="attach-file" size={20} color="#fff" />
+          <Text style={styles.imageButtonText}>
+            {imageUri ? 'Recibo Adjunto' : 'Adjuntar Imagen'}
+          </Text>
+        </TouchableOpacity>
+        {imageUri && <Text style={styles.hint}>Imagen simulada adjunta.</Text>}
+
+        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+          <Text style={styles.saveButtonText}>Guardar {type}</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
+  );
 };
 
 const styles = StyleSheet.create({

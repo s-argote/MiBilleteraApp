@@ -1,46 +1,21 @@
 import React, { useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Modal, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons, AntDesign } from '@expo/vector-icons'; // AntDesign ya no es necesario, usaremos MaterialIcons para 'add'
-
-// ... (mockTransactions se mantiene igual)
-
-const mockTransactions = [
-    {
-        id: 't1',
-        title: 'Cena en Restaurante',
-        amount: -55.50,
-        type: 'Gasto',
-        date: '2025-10-05',
-        category: 'Alimentación',
-        image: 'https://via.placeholder.com/50/FF6B6B/FFFFFF?text=R',
-    },
-    {
-        id: 't3',
-        title: 'Boleto de Bus',
-        amount: -3.00,
-        type: 'Gasto',
-        date: '2025-10-06',
-        category: 'Transporte',
-        image: 'https://via.placeholder.com/50/45B7D1/FFFFFF?text=R',
-    },
-    {
-        id: 't4',
-        title: 'Compra de Ropa',
-        amount: -120.99,
-        type: 'Gasto',
-        date: '2025-10-07',
-        category: 'Ropa',
-        image: 'https://via.placeholder.com/50/FFEAA7/333333?text=R',
-    },
-];
+import { MaterialIcons } from '@expo/vector-icons';
+import { useTransactionViewModel } from '../../viewmodels/TransactionViewModel';
+import { useFocusEffect } from '@react-navigation/native';
 
 export const TransactionsScreen = ({ navigation }: any) => {
-    const [transactions, setTransactions] = useState(mockTransactions);
+    const { transactions, loading, deleteTransaction, loadTransactions } = useTransactionViewModel();
     const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
     const [menuVisible, setMenuVisible] = useState(false);
 
-    // ... (openMenu, closeMenu, handleEdit, handleDelete se mantienen igual)
+    useFocusEffect(
+        React.useCallback(() => {
+            loadTransactions(); // Recarga cada vez que la pantalla se muestra
+        }, [])
+    );
+
     const openMenu = (transaction: any) => {
         setSelectedTransaction(transaction);
         setMenuVisible(true);
@@ -66,15 +41,12 @@ export const TransactionsScreen = ({ navigation }: any) => {
             'Eliminar Transacción',
             `¿Estás seguro de eliminar "${transactionToDelete.title}" de ${transactionToDelete.amount}?`,
             [
-                {
-                    text: 'No',
-                    style: 'cancel',
-                },
+                { text: 'No', style: 'cancel' },
                 {
                     text: 'Sí, Eliminar',
                     style: 'destructive',
-                    onPress: () => {
-                        setTransactions(prev => prev.filter(t => t.id !== transactionToDelete.id));
+                    onPress: async () => {
+                        await deleteTransaction(transactionToDelete.id);
                         Alert.alert('Eliminado', `La transacción "${transactionToDelete.title}" ha sido eliminada.`);
                     },
                 },
@@ -82,39 +54,27 @@ export const TransactionsScreen = ({ navigation }: any) => {
         );
     };
 
-    // RF10: Componente para renderizar cada transacción (se mantiene igual)
     const renderItem = ({ item }: { item: any }) => {
         const isExpense = item.type === 'Gasto';
         const amountStyle = isExpense ? styles.expenseText : styles.incomeText;
 
         return (
             <View style={styles.transactionItem}>
-                {/* Imagen/Icono */}
-                <Image source={{ uri: item.image }} style={styles.transactionImage} />
-
-                {/* Detalles de la transacción */}
+                <Image source={{ uri: item.image || 'https://via.placeholder.com/50/ccc/333?text=IMG' }} style={styles.transactionImage} />
                 <View style={styles.detailsContainer}>
                     <Text style={styles.transactionTitle} numberOfLines={1}>{item.title}</Text>
                     <Text style={styles.transactionCategory}>{item.category} • {item.date}</Text>
                 </View>
-
-                {/* Monto */}
                 <Text style={[styles.transactionAmount, amountStyle]}>
                     {isExpense ? '-' : '+'} ${Math.abs(item.amount).toFixed(2)}
                 </Text>
-
-                {/* Botón de opciones */}
-                <TouchableOpacity
-                    style={styles.menuButton}
-                    onPress={() => openMenu(item)}
-                >
+                <TouchableOpacity style={styles.menuButton} onPress={() => openMenu(item)}>
                     <MaterialIcons name="more-vert" size={24} color="#888" />
                 </TouchableOpacity>
             </View>
         );
     };
 
-    // RF11: Acción del botón "+Agregar"
     const handleAddTransaction = () => {
         navigation.navigate('Agregar Transacción');
     };
@@ -123,11 +83,7 @@ export const TransactionsScreen = ({ navigation }: any) => {
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.title}>Mis Transacciones</Text>
-                {/* 1. Botón de agregar movido al header, igual que en CategoriesScreen */}
-                <TouchableOpacity
-                    style={styles.addButton}
-                    onPress={handleAddTransaction}
-                >
+                <TouchableOpacity style={styles.addButton} onPress={handleAddTransaction}>
                     <MaterialIcons name="add" size={24} color="#fff" />
                 </TouchableOpacity>
             </View>
@@ -146,17 +102,8 @@ export const TransactionsScreen = ({ navigation }: any) => {
                 )}
             />
 
-            {/* 2. El Modal y su lógica se mantienen igual */}
-            <Modal
-                visible={menuVisible}
-                transparent={true}
-                animationType="fade"
-                onRequestClose={closeMenu}
-            >
-                <TouchableOpacity
-                    style={styles.modalOverlay}
-                    onPress={closeMenu}
-                >
+            <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={closeMenu}>
+                <TouchableOpacity style={styles.modalOverlay} onPress={closeMenu}>
                     <View style={styles.menuContainer}>
                         <TouchableOpacity style={styles.menuOption} onPress={handleEdit}>
                             <Text style={styles.menuOptionText}>Editar</Text>

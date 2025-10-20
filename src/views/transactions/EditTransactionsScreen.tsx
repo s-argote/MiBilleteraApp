@@ -1,255 +1,254 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Platform } from 'react-native';
+import {View,Text,TextInput,TouchableOpacity,StyleSheet,Alert,ScrollView,Platform} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useTransactionViewModel } from '../../viewmodels/TransactionViewModel';
+import { useCategoryViewModel } from '../../viewmodels/CategoryViewModel';
 
-// Mocks para los selectores
 const transactionTypes = ['Ingreso', 'Gasto'];
-const mockCategories = [
-    { id: '1', name: 'Alimentación' },
-    { id: '2', name: 'Transporte' },
-    { id: '3', name: 'Entretenimiento' },
-    { id: '4', name: 'Salud' },
-    { id: '5', name: 'Ropa' },
-    { id: '6', name: 'Otros' },
-];
 
 export const EditTransactionsScreen = ({ route, navigation }: any) => {
-    const { transaction } = route.params; // Transacción recibida desde CategoriesScreen
+  const { transaction } = route.params;
+  const { updateTransaction } = useTransactionViewModel();
+  const { categories, loading: categoriesLoading } = useCategoryViewModel();
 
-    // El monto debe ser absoluto para el input, el signo lo maneja 'type'
-    const initialAmount = Math.abs(transaction.amount).toFixed(2);
-    const initialDate = new Date(transaction.date);
+  const initialAmount = Math.abs(transaction.amount).toFixed(2);
+  const initialDate = new Date(transaction.date);
 
-    const [type, setType] = useState(transaction.type);
-    const [category, setCategory] = useState(transaction.category);
-    const [title, setTitle] = useState(transaction.title);
-    const [amount, setAmount] = useState(initialAmount);
-    const [date, setDate] = useState(initialDate);
-    const [showDatePicker, setShowDatePicker] = useState(false);
-    const [imageUri, setImageUri] = useState<string | null>(transaction.image || null);
+  const [type, setType] = useState<'Ingreso' | 'Gasto'>(transaction.type);
+  const [category, setCategory] = useState<string>(transaction.category);
+  const [title, setTitle] = useState(transaction.title);
+  const [amount, setAmount] = useState(initialAmount);
+  const [date, setDate] = useState(initialDate);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [imageUri, setImageUri] = useState<string | null>(transaction.image || null);
 
-    useEffect(() => {
-        navigation.setOptions({ title: 'Editar Transacción' });
-    }, [navigation]);
+  useEffect(() => {
+    navigation.setOptions({ title: 'Editar Transacción' });
+  }, [navigation]);
 
-    const handleDateChange = (event: any, selectedDate: Date | undefined) => {
-        const currentDate = selectedDate || date;
-        setShowDatePicker(Platform.OS === 'ios');
-        setDate(currentDate);
-    };
+  useEffect(() => {
+    if (categories.length > 0 && !categories.some(c => c.name === category)) {
+      setCategory(categories[0].name);
+    }
+  }, [categories, category]);
 
-    const handleImageAttach = () => {
-        Alert.alert('Funcionalidad Pendiente', 'La selección de imagen se implementará más adelante.');
-        // Simulación:
-        setImageUri('simulated-uri-updated');
-    };
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    const currentDate = selectedDate || date;
+    setShowDatePicker(Platform.OS === 'ios');
+    setDate(currentDate);
+  };
 
-    // RF12: Acción del botón "Guardar"
-    const handleSave = () => {
-        const parsedAmount = parseFloat(amount.replace(',', '.'));
+  const handleImageAttach = () => {
+    Alert.alert('Funcionalidad Pendiente', 'La selección de imagen se implementará más adelante.');
+    setImageUri('https://via.placeholder.com/50/4ECDC4/FFFFFF?text=IMG');
+  };
 
-        if (!title.trim() || !amount.trim() || isNaN(parsedAmount) || parsedAmount <= 0) {
-            Alert.alert('Campos requeridos', 'Por favor, completa el título y un monto válido.');
-            return;
-        }
+  const handleSave = async () => {
+    const cleanAmount = amount.replace(',', '.');
+    const parsedAmount = parseFloat(cleanAmount);
 
-        const updatedTransaction = {
-            ...transaction, // Mantiene el ID
-            title: title.trim(),
-            amount: type === 'Gasto' ? -parsedAmount : parsedAmount,
-            type,
-            date: date.toISOString().split('T')[0],
-            category,
-            image: imageUri || '',
-        };
+    if (!title.trim()) {
+      Alert.alert('Título requerido', 'Por favor ingresa un título.');
+      return;
+    }
+    if (!amount.trim() || isNaN(parsedAmount) || parsedAmount <= 0) {
+      Alert.alert('Monto inválido', 'Por favor ingresa un monto válido mayor a 0.');
+      return;
+    }
 
-        // Aquí iría la lógica de actualización en la base de datos (más adelante)
-        console.log('Transacción actualizada:', updatedTransaction);
+    try {
+      await updateTransaction(transaction.id, {
+        title: title.trim(),
+        amount: type === 'Gasto' ? -parsedAmount : parsedAmount,
+        type,
+        date: date.toISOString().split('T')[0],
+        category,
+        image: imageUri || '',
+      });
+      Alert.alert('Éxito', `Transacción "${title}" actualizada.`);
+      navigation.goBack();
+    } catch (error) {
+      console.error('Error al actualizar transacción:', error);
+      Alert.alert('Error', 'No se pudo actualizar la transacción. Inténtalo de nuevo.');
+    }
+  };
 
-        Alert.alert('Éxito', `Transacción "${updatedTransaction.title}" actualizada.`);
-        navigation.goBack(); // Regresa a la lista
-    };
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.title}>Editar Transacción</Text>
 
-    return (
-        <SafeAreaView style={styles.container}>
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                <Text style={styles.title}>Editar Transacción</Text>
+        <Text style={styles.label}>Tipo</Text>
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={type}
+            onValueChange={(itemValue) => setType(itemValue)}
+            style={styles.picker}
+          >
+            {transactionTypes.map((t) => (
+              <Picker.Item key={t} label={t} value={t} />
+            ))}
+          </Picker>
+        </View>
 
-                {/* Tipo de Transacción */}
-                <Text style={styles.label}>Tipo</Text>
-                <View style={styles.pickerContainer}>
-                    <Picker
-                        selectedValue={type}
-                        onValueChange={(itemValue) => setType(itemValue)}
-                        style={styles.picker}
-                        mode="dropdown"
-                    >
-                        {transactionTypes.map((t) => (
-                            <Picker.Item key={t} label={t} value={t} />
-                        ))}
-                    </Picker>
-                </View>
+        <Text style={styles.label}>Categoría</Text>
+        <View style={styles.pickerContainer}>
+          {categoriesLoading ? (
+            <Text>Cargando categorías...</Text>
+          ) : (
+            <Picker
+              selectedValue={category}
+              onValueChange={(itemValue) => setCategory(itemValue)}
+              style={styles.picker}
+            >
+              {categories.map((c) => (
+                <Picker.Item key={c.id} label={c.name} value={c.name} />
+              ))}
+              <Picker.Item label="Otros" value="Otros" />
+            </Picker>
+          )}
+        </View>
 
-                {/* Categoría */}
-                <Text style={styles.label}>Categoría</Text>
-                <View style={styles.pickerContainer}>
-                    <Picker
-                        selectedValue={category}
-                        onValueChange={(itemValue) => setCategory(itemValue)}
-                        style={styles.picker}
-                        mode="dropdown"
-                    >
-                        {mockCategories.map((c) => (
-                            <Picker.Item key={c.id} label={c.name} value={c.name} />
-                        ))}
-                    </Picker>
-                </View>
+        <Text style={styles.label}>Título / Descripción</Text>
+        <TextInput
+          style={styles.input}
+          value={title}
+          onChangeText={setTitle}
+          maxLength={50}
+        />
 
-                {/* Título */}
-                <Text style={styles.label}>Título / Descripción</Text>
-                <TextInput
-                    style={styles.input}
-                    value={title}
-                    onChangeText={setTitle}
-                    maxLength={50}
-                />
+        <Text style={styles.label}>Monto</Text>
+        <TextInput
+          style={styles.input}
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="numeric"
+        />
 
-                {/* Monto */}
-                <Text style={styles.label}>Monto</Text>
-                <TextInput
-                    style={styles.input}
-                    value={amount}
-                    onChangeText={setAmount}
-                    keyboardType="numeric"
-                />
+        <Text style={styles.label}>Fecha</Text>
+        <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.dateButton}>
+          <MaterialIcons name="calendar-today" size={20} color="#007AFF" />
+          <Text style={styles.dateText}>{date.toLocaleDateString()}</Text>
+        </TouchableOpacity>
 
-                {/* Fecha */}
-                <Text style={styles.label}>Fecha</Text>
-                <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.dateButton}>
-                    <MaterialIcons name="calendar-today" size={20} color="#007AFF" />
-                    <Text style={styles.dateText}>{date.toLocaleDateString()}</Text>
-                </TouchableOpacity>
+        {showDatePicker && (
+          <DateTimePicker
+            value={date}
+            mode="date"
+            display="default"
+            onChange={handleDateChange}
+          />
+        )}
 
-                {showDatePicker && (
-                    <DateTimePicker
-                        testID="datePicker"
-                        value={date}
-                        mode="date"
-                        display="default"
-                        onChange={handleDateChange}
-                    />
-                )}
+        <Text style={styles.label}>Recibo o Comprobante (Opcional)</Text>
+        <TouchableOpacity style={styles.imageButton} onPress={handleImageAttach}>
+          <MaterialIcons name="attach-file" size={20} color="#fff" />
+          <Text style={styles.imageButtonText}>
+            {imageUri ? 'Recibo Adjunto' : 'Adjuntar Imagen'}
+          </Text>
+        </TouchableOpacity>
+        {imageUri && <Text style={styles.hint}>Estado actual: Recibo adjunto.</Text>}
 
-                {/* Archivo Imagen (Opcional) */}
-                <Text style={styles.label}>Recibo o Comprobante (Opcional)</Text>
-                <TouchableOpacity style={styles.imageButton} onPress={handleImageAttach}>
-                    <MaterialIcons name="attach-file" size={20} color="#fff" />
-                    <Text style={styles.imageButtonText}>
-                        {imageUri ? 'Recibo Adjunto' : 'Adjuntar Imagen'}
-                    </Text>
-                </TouchableOpacity>
-                {imageUri && <Text style={styles.hint}>Estado actual: {imageUri === 'simulated-uri-updated' ? 'ACTUALIZADO' : 'Anteriormente adjunto'}.</Text>}
-
-                <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                    <Text style={styles.saveButtonText}>Guardar Cambios</Text>
-                </TouchableOpacity>
-            </ScrollView>
-        </SafeAreaView>
-    );
+        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+          <Text style={styles.saveButtonText}>Guardar Cambios</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
+  );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#f8f9fa',
-    },
-    scrollContent: {
-        padding: 20,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: '700',
-        marginBottom: 24,
-        textAlign: 'center',
-        color: '#333',
-    },
-    label: {
-        fontSize: 16,
-        fontWeight: '600',
-        marginBottom: 8,
-        color: '#555',
-    },
-    input: {
-        backgroundColor: '#fff',
-        padding: 14,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: '#ddd',
-        fontSize: 16,
-        marginBottom: 20,
-    },
-    pickerContainer: {
-        backgroundColor: '#fff',
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: '#ddd',
-        marginBottom: 20,
-        overflow: 'hidden',
-    },
-    picker: {
-        height: 50,
-        width: '100%',
-    },
-    dateButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        padding: 14,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: '#ddd',
-        marginBottom: 20,
-    },
-    dateText: {
-        fontSize: 16,
-        marginLeft: 10,
-        color: '#333',
-    },
-    imageButton: {
-        flexDirection: 'row',
-        backgroundColor: '#5AC8FA',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 10,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 10,
-    },
-    imageButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-        marginLeft: 10,
-    },
-    hint: {
-        fontSize: 12,
-        color: '#999',
-        textAlign: 'center',
-        marginBottom: 24,
-    },
-    saveButton: {
-        backgroundColor: '#007AFF',
-        paddingVertical: 16,
-        borderRadius: 12,
-        alignItems: 'center',
-        marginTop: 10,
-    },
-    saveButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  scrollContent: {
+    padding: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 24,
+    textAlign: 'center',
+    color: '#333',
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#555',
+  },
+  input: {
+    backgroundColor: '#fff',
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    fontSize: 16,
+    marginBottom: 20,
+  },
+  pickerContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginBottom: 20,
+    overflow: 'hidden',
+  },
+  picker: {
+    height: 50,
+    width: '100%',
+  },
+  dateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginBottom: 20,
+  },
+  dateText: {
+    fontSize: 16,
+    marginLeft: 10,
+    color: '#333',
+  },
+  imageButton: {
+    flexDirection: 'row',
+    backgroundColor: '#5AC8FA',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  imageButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 10,
+  },
+  hint: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  saveButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });
