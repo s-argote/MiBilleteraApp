@@ -21,9 +21,14 @@ export const AddCategoriesScreen = ({ navigation }: any) => {
             return;
         }
 
-        await addCategory(name, color);
-        Alert.alert('Éxito', 'Categoría guardada correctamente.');
-        navigation.goBack();
+        try {
+            await addCategory(name, color);
+            Alert.alert('Éxito', 'Categoría guardada correctamente.');
+            navigation.goBack();
+        } catch (error: any) {
+            // Muestra el mensaje de error al usuario
+            Alert.alert('Error', error.message || 'No se pudo guardar la categoría.');
+        }
     };
 
     return (

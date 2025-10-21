@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {View,Text,TextInput,TouchableOpacity,StyleSheet,Alert,ScrollView,Platform} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
@@ -71,10 +71,11 @@ export const AddTransactionsScreen = ({ navigation }: any) => {
         title: title.trim(),
         amount: type === 'Gasto' ? -parsedAmount : parsedAmount,
         type,
-        date: date.toISOString().split('T')[0],
+        date: date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0'),
         category,
         image: imageUri || '',
-        userId: user.uid, // ✅ Incluido
+        userId: user.uid, //  Incluido
+        color: categories.find(c => c.name === category)?.color || '#ccc',
       };
 
       await addTransaction(newTransaction);
@@ -174,94 +175,95 @@ export const AddTransactionsScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#f8f9fa',
-    },
-    scrollContent: {
-        padding: 20,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: '700',
-        marginBottom: 24,
-        textAlign: 'center',
-        color: '#333',
-    },
-    label: {
-        fontSize: 16,
-        fontWeight: '600',
-        marginBottom: 8,
-        color: '#555',
-    },
-    input: {
-        backgroundColor: '#fff',
-        padding: 14,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: '#ddd',
-        fontSize: 16,
-        marginBottom: 20,
-    },
-    pickerContainer: {
-        backgroundColor: '#fff',
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: '#ddd',
-        marginBottom: 20,
-        overflow: 'hidden',
-    },
-    picker: {
-        height: 50,
-        width: '100%',
-    },
-    dateButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        padding: 14,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: '#ddd',
-        marginBottom: 20,
-    },
-    dateText: {
-        fontSize: 16,
-        marginLeft: 10,
-        color: '#333',
-    },
-    imageButton: {
-        flexDirection: 'row',
-        backgroundColor: '#5AC8FA',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 10,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 10,
-    },
-    imageButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-        marginLeft: 10,
-    },
-    hint: {
-        fontSize: 12,
-        color: '#999',
-        textAlign: 'center',
-        marginBottom: 24,
-    },
-    saveButton: {
-        backgroundColor: '#007AFF',
-        paddingVertical: 16,
-        borderRadius: 12,
-        alignItems: 'center',
-        marginTop: 10,
-    },
-    saveButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  scrollContent: {
+    padding: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 24,
+    textAlign: 'center',
+    color: '#333',
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#555',
+  },
+  input: {
+    backgroundColor: '#fff',
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    fontSize: 16,
+    marginBottom: 20,
+  },
+  pickerContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginBottom: 20,
+    overflow: 'hidden',
+
+  },
+  picker: {
+    height: 50,
+    width: '100%',
+  },
+  dateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginBottom: 20,
+  },
+  dateText: {
+    fontSize: 16,
+    marginLeft: 10,
+    color: '#333',
+  },
+  imageButton: {
+    flexDirection: 'row',
+    backgroundColor: '#5AC8FA',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  imageButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 10,
+  },
+  hint: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  saveButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });

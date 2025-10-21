@@ -51,19 +51,22 @@ export const CategoriesScreen = ({ navigation }: any) => {
     /**
      * Muestra un cuadro de diálogo para confirmar la eliminación de la categoría.
      */
-    const handleDelete = async () => {
+    const handleDelete = () => {
         if (!selectedCategory) return;
+        const categoryToDelete = selectedCategory;
+        closeMenu();
+
         Alert.alert(
             'Eliminar categoría',
-            `¿Estás seguro de eliminar "${selectedCategory.name}"?`,
+            `¿Estás seguro de eliminar la categoría "${categoryToDelete.name}"?`,
             [
                 { text: 'Cancelar', style: 'cancel' },
                 {
                     text: 'Eliminar',
                     style: 'destructive',
                     onPress: async () => {
-                        await deleteCategory(selectedCategory.id);
-                        closeMenu();
+                        await deleteCategory(categoryToDelete.id);
+                        Alert.alert('Eliminado', `La categoría "${categoryToDelete.name}" ha sido eliminada.`);
                     },
                 },
             ]
@@ -108,10 +111,15 @@ export const CategoriesScreen = ({ navigation }: any) => {
                     keyExtractor={(item) => item.id}
                     contentContainerStyle={styles.list}
                     showsVerticalScrollIndicator={false}
+                    ListEmptyComponent={() => (
+                        <View style={styles.emptyContainer}>
+                            <Text style={styles.emptyText}>No hay categorías registradas.</Text>
+                            <Text style={styles.emptyText}>¡Comienza agregando una!</Text>
+                        </View>
+                    )}
                 />
             )}
 
-            {/* Menú contextual */}
             <Modal
                 visible={menuVisible}
                 transparent
@@ -179,9 +187,9 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
     colorBox: {
-        width: 24,
-        height: 24,
-        borderRadius: 4,
+        width: 40,
+        height: 40,
+        borderRadius: 50,
         marginRight: 16,
     },
     categoryName: {
@@ -222,5 +230,13 @@ const styles = StyleSheet.create({
     deleteText: {
         color: '#FF3B30',
         fontWeight: '600',
+    },
+    emptyContainer: {
+        paddingTop: 50,
+        alignItems: 'center',
+    },
+    emptyText: {
+        fontSize: 16,
+        color: '#999',
     },
 });

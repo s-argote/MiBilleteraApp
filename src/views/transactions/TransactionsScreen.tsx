@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Modal, Alert, Image } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Modal, Alert, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTransactionViewModel } from '../../viewmodels/TransactionViewModel';
@@ -39,7 +39,7 @@ export const TransactionsScreen = ({ navigation }: any) => {
 
         Alert.alert(
             'Eliminar Transacción',
-            `¿Estás seguro de eliminar "${transactionToDelete.title}" de ${transactionToDelete.amount}?`,
+            `¿Estás seguro de eliminar la transacción "${transactionToDelete.title}" de ${transactionToDelete.amount}?`,
             [
                 { text: 'No', style: 'cancel' },
                 {
@@ -62,11 +62,14 @@ export const TransactionsScreen = ({ navigation }: any) => {
             <View style={styles.transactionItem}>
                 <Image source={{ uri: item.image || 'https://via.placeholder.com/50/ccc/333?text=IMG' }} style={styles.transactionImage} />
                 <View style={styles.detailsContainer}>
-                    <Text style={styles.transactionTitle} numberOfLines={1}>{item.title}</Text>
+                    <View style={styles.titleRow}>
+                        <Text style={[styles.transactionTitle, { flex: 1 }]} numberOfLines={1}>{item.title}</Text>
+                        <View style={[styles.categoryColorCircle, { backgroundColor: item.color || '#ccc' }]} />
+                    </View>
                     <Text style={styles.transactionCategory}>{item.category} • {item.date}</Text>
                 </View>
                 <Text style={[styles.transactionAmount, amountStyle]}>
-                    {isExpense ? '-' : '+'} ${Math.abs(item.amount).toFixed(2)}
+                    {isExpense ? '-' : '+'} ${Math.abs(item.amount).toFixed(0)}
                 </Text>
                 <TouchableOpacity style={styles.menuButton} onPress={() => openMenu(item)}>
                     <MaterialIcons name="more-vert" size={24} color="#888" />
@@ -88,19 +91,23 @@ export const TransactionsScreen = ({ navigation }: any) => {
                 </TouchableOpacity>
             </View>
 
-            <FlatList
-                data={transactions}
-                renderItem={renderItem}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.list}
-                showsVerticalScrollIndicator={false}
-                ListEmptyComponent={() => (
-                    <View style={styles.emptyContainer}>
-                        <Text style={styles.emptyText}>No hay transacciones registradas.</Text>
-                        <Text style={styles.emptyText}>¡Comienza agregando una!</Text>
-                    </View>
-                )}
-            />
+            {loading ? (
+                <ActivityIndicator size="large" color="#007AFF" style={{ marginTop: 40 }} />
+            ) : (
+                <FlatList
+                    data={transactions}
+                    renderItem={renderItem}
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={styles.list}
+                    showsVerticalScrollIndicator={false}
+                    ListEmptyComponent={() => (
+                        <View style={styles.emptyContainer}>
+                            <Text style={styles.emptyText}>No hay transacciones registradas.</Text>
+                            <Text style={styles.emptyText}>¡Comienza agregando una!</Text>
+                        </View>
+                    )}
+                />
+            )}
 
             <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={closeMenu}>
                 <TouchableOpacity style={styles.modalOverlay} onPress={closeMenu}>
@@ -239,5 +246,16 @@ const styles = StyleSheet.create({
     emptyText: {
         fontSize: 16,
         color: '#999',
-    }
+    },
+    titleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 2,
+    },
+    categoryColorCircle: {
+        width: 20,
+        height: 20,
+        borderRadius: 10, // Para hacerlo circular
+        marginLeft: 8, // Espacio entre el título y el círculo
+    },
 });

@@ -21,9 +21,12 @@ export const useAuthViewModel = () => {
         console.error(e);
         if (e.code === 'auth/email-already-in-use') {
             setError('Este correo ya está registrado.');
+        } else if (e.code === 'auth/weak-password') {
+            setError('La contraseña debe tener al menos 6 caracteres.');
+        } else if (e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found') {
+            setError('Credenciales incorrectas o usuario no registrado.');
         } else {
-            // Extrae el código de error de Firebase para un mensaje más limpio
-            setError(e.code ? `Error: ${e.code.replace('auth/', '').replace(/-/g, ' ')}` : defaultMessage);
+            setError(e.message || defaultMessage);
         }
     };
 
@@ -38,6 +41,7 @@ export const useAuthViewModel = () => {
             clearForm();
         } catch (e) {
             handleError(e, 'Error desconocido al iniciar sesión');
+            throw e; // Propaga el error para que el componente lo maneje con Alert
         } finally {
             setLoading(false);
         }
@@ -51,17 +55,15 @@ export const useAuthViewModel = () => {
         setError(null);
         try {
             const user = await AuthService.register(email, password);
-            // Guardar el nombre en Firestore
             await setDoc(doc(db, 'users', user.uid), {
                 name,
                 email,
                 createdAt: new Date()
             });
             clearForm();
-
         } catch (e) {
             handleError(e, 'Error desconocido al registrarse');
-            throw e; // Para que el componente sepa si falló
+            throw e; // Propaga el error para que el componente lo maneje con Alert
         } finally {
             setLoading(false);
         }

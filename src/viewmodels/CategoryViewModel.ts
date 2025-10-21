@@ -19,17 +19,25 @@ export const useCategoryViewModel = () => {
         }
     };
 
+    const categoryExists = (name: string): boolean => {
+        return categories.some(cat => cat.name.toLowerCase() === name.toLowerCase());
+    };
+
     /**
      * Agrega una nueva categoría.
      * @param {string} name - Nombre de la categoría.
      * @param {string} color - Color de la categoría.
      */
     const addCategory = async (name: string, color: string) => {
+        if (categoryExists(name)) {
+            throw new Error('Ya existe una categoría con ese nombre.');
+        }
         try {
             await CategoryService.addCategory({ name, color });
             await loadCategories(); // Recarga la lista.
         } catch (error) {
             console.error("Error al agregar categoría:", error);
+            throw error;
         }
     };
 
@@ -43,6 +51,7 @@ export const useCategoryViewModel = () => {
             await loadCategories(); // Recarga la lista.
         } catch (error) {
             console.error("Error al eliminar categoría:", error);
+            throw error;
         }
     };
 
@@ -52,11 +61,22 @@ export const useCategoryViewModel = () => {
      * @param {Object} data - Nuevos datos (nombre y/o color).
      */
     const updateCategory = async (id: string, data: { name?: string; color?: string }) => {
+        // Validación: si se está cambiando el nombre, verificar que no exista otra categoría con ese nombre
+        if (data.name != null) {
+            const newName = data.name; // Asigna a una variable para evitar errores de tipado
+            const exists = categories.some(cat =>
+                cat.id !== id && cat.name.toLowerCase() === newName.toLowerCase()
+            );
+            if (exists) {
+                throw new Error('Ya existe una categoría con ese nombre.');
+            }
+        }
         try {
             await CategoryService.updateCategory(id, data);
             await loadCategories(); // Recarga la lista.
         } catch (error) {
             console.error("Error al actualizar categoría:", error);
+            throw error;
         }
     };
 
@@ -71,6 +91,7 @@ export const useCategoryViewModel = () => {
         addCategory,
         deleteCategory,
         updateCategory,
+        categoryExists,
         loadCategories, // Para recargar manualmente si es necesario.
     };
 };

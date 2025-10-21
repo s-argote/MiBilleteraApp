@@ -7,4 +7,5 @@ export interface Transaction {
     category: string;
     image?: string; // URL opcional de la imagen
     userId: string; // Para asociar la transacción con el usuario
+    color?: string; // Color asociado a la categoría
 }

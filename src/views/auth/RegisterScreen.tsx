@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Image, Alert, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useAuthViewModel } from '../../viewmodels/AuthViewModel';
 import { RegisterStyles as styles } from '../../styles/RegisterStyles';
@@ -8,25 +8,24 @@ export const RegisterScreen = ({ navigation }: any) => {
 
   const [showPassword, setShowPassword] = React.useState(false); // controla visibilidad de la contraseña
 
-  React.useEffect(() => {
-    if (error) {
-      Alert.alert('Error de Registro', error);
-    }
-  }, [error]);
-
-  const onPressRegister = () => {
-    if (!name || !email || !password) {
-      setError('Por favor completa todos los campos.');
+  const onPressRegister = async () => {
+    if (!name.trim() || !email.trim() || !password.trim()) {
+      Alert.alert('Campos requeridos', 'Por favor completa todos los campos.');
       return;
     }
 
-    handleRegister()
-      .then(() => {
-        Alert.alert('¡Cuenta creada!', 'Ahora puedes iniciar sesión.');
-      })
-      .catch(() => {
-        // El error ya se maneja en el ViewModel
-      });
+    if (password.length < 6) {
+      Alert.alert('Contraseña inválida', 'La contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+
+    try {
+      await handleRegister();
+      Alert.alert('¡Cuenta creada!', 'Ahora puedes iniciar sesión.');
+      navigation.navigate('Iniciar Sesión');
+    } catch (err: any) {
+      Alert.alert('Error de Registro', err.message || 'No se pudo registrar.');
+    }
   };
 
   return (

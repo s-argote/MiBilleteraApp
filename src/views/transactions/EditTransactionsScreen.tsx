@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {View,Text,TextInput,TouchableOpacity,StyleSheet,Alert,ScrollView,Platform} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
@@ -14,8 +14,10 @@ export const EditTransactionsScreen = ({ route, navigation }: any) => {
   const { updateTransaction } = useTransactionViewModel();
   const { categories, loading: categoriesLoading } = useCategoryViewModel();
 
-  const initialAmount = Math.abs(transaction.amount).toFixed(2);
-  const initialDate = new Date(transaction.date);
+  const initialAmount = Math.abs(transaction.amount).toFixed(0);
+  // Convierte la cadena "YYYY-MM-DD" a un objeto Date de forma segura
+  const dateParts = transaction.date.split('-').map(Number);
+  const initialDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
 
   const [type, setType] = useState<'Ingreso' | 'Gasto'>(transaction.type);
   const [category, setCategory] = useState<string>(transaction.category);
@@ -64,11 +66,12 @@ export const EditTransactionsScreen = ({ route, navigation }: any) => {
         title: title.trim(),
         amount: type === 'Gasto' ? -parsedAmount : parsedAmount,
         type,
-        date: date.toISOString().split('T')[0],
+        date: date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0'),
         category,
         image: imageUri || '',
+        color: categories.find(c => c.name === category)?.color || '#ccc',
       });
-      Alert.alert('Éxito', `Transacción "${title}" actualizada.`);
+      Alert.alert('Éxito', `La transacción "${title}" ha sido actualizada.`);
       navigation.goBack();
     } catch (error) {
       console.error('Error al actualizar transacción:', error);

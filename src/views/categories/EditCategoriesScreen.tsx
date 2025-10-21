@@ -30,9 +30,8 @@ export const EditCategoriesScreen = ({ route, navigation }: any) => {
             await updateCategory(category.id, { name, color });
             Alert.alert('Éxito', 'Categoría actualizada correctamente.');
             navigation.goBack();
-        } catch (error) {
-            Alert.alert('Error', 'No se pudo actualizar la categoría.');
-            console.error(error);
+        } catch (error: any) {
+            Alert.alert('Error', error.message || 'No se pudo actualizar la categoría.');
         }
     };
 

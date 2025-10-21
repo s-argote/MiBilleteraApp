@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Button, Alert, ActivityIndicator, StyleSheet, TouchableOpacity, Image, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useAuthViewModel } from '../../viewmodels/AuthViewModel';
 import { LoginStyles as styles } from '../../styles/LoginStyles';
@@ -10,22 +10,23 @@ export const LoginScreen = ({ navigation }: any) => {
   const [showPassword, setShowPassword] = React.useState(false); // controla visibilidad de la contraseña
 
 
-  // Limpia errores al cambiar input
-  React.useEffect(() => {
+  // Limpia el error al escribir
+  useEffect(() => {
     if (error) setError('');
-  }, [email, password]);
+  }, [email, password, setError]);
 
   const onLoginPress = async () => {
-    // Validación de campos vacíos
     if (!email.trim() || !password.trim()) {
-      setError('Por favor completa todos los campos.');
+      Alert.alert('Campos requeridos', 'Por favor ingresa tu correo y contraseña.');
       return;
     }
 
     try {
       await handleLogin();
-    } catch (err) {
-      setError('Credenciales incorrectas o usuario no registrado.');
+      // Si el login es exitoso, Firebase redirige automáticamente vía App.tsx
+    } catch (err: any) {
+      // Maneja el error solo con una alerta amigable
+      Alert.alert('Error de Inicio de Sesión', err.message || 'Credenciales inválidas.');
     }
   };
 
