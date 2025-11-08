@@ -3,13 +3,13 @@ import { AuthService } from '../services/AuthService';
 import { db } from '../services/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 
-
 export const useAuthViewModel = () => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [user, setUser] = useState<any>(null);
 
     const clearForm = () => {
         setName('');
@@ -19,80 +19,102 @@ export const useAuthViewModel = () => {
 
     const handleError = (e: any, defaultMessage: string) => {
         console.error(e);
-        if (e.code === 'auth/email-already-in-use') {
-            setError('Este correo ya está registrado.');
-        } else if (e.code === 'auth/weak-password') {
-            setError('La contraseña debe tener al menos 6 caracteres.');
-        } else if (e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found') {
-            setError('Credenciales incorrectas o usuario no registrado.');
-        } else {
-            setError(e.message || defaultMessage);
+
+        switch (e.code) {
+            case 'auth/email-already-in-use':
+                setError('Este correo ya está registrado.');
+                break;
+
+            case 'auth/weak-password':
+                setError('La contraseña debe tener al menos 6 caracteres.');
+                break;
+
+            case 'auth/wrong-password':
+            case 'auth/invalid-credential':
+                setError('Contraseña incorrecta.');
+                break;
+
+            case 'auth/user-not-found':
+                setError('Usuario no registrado.');
+                break;
+
+            case 'auth/email-not-verified':
+                setError('Debes verificar tu correo antes de iniciar sesión.');
+                break;
+
+            default:
+                setError(e.message || defaultMessage);
+                break;
         }
     };
 
-    /**
-     * Lógica para el botón de Iniciar Sesión.
-     */
+    //  Login estrictamente con correo verificado
     const handleLogin = async () => {
         setLoading(true);
         setError(null);
+
         try {
-            await AuthService.login(email, password);
+            const loggedUser = await AuthService.login(email, password);
+
+            if (!loggedUser.emailVerified) {
+                throw { code: 'auth/email-not-verified' };
+            }
+
             clearForm();
-        } catch (e) {
+            return loggedUser;
+
+        } catch (e: any) {
             handleError(e, 'Error desconocido al iniciar sesión');
-            throw e; // Propaga el error para que el componente lo maneje con Alert
+            throw e;
         } finally {
             setLoading(false);
         }
     };
 
-    /**
-     * Lógica para el botón de Registrarse.
-     */
+    //  Registro + enviar verificación + NO iniciar sesión
     const handleRegister = async () => {
         setLoading(true);
         setError(null);
+
         try {
             const user = await AuthService.register(email, password);
-            await setDoc(doc(db, 'users', user.uid), {
+
+            await setDoc(doc(db, "users", user.uid), {
                 name,
                 email,
                 createdAt: new Date()
             });
+
             clearForm();
-        } catch (e) {
+
+            //  mensaje informativo
+            setError("Te enviamos un correo para verificar tu cuenta.");
+
+        } catch (e: any) {
             handleError(e, 'Error desconocido al registrarse');
-            throw e; // Propaga el error para que el componente lo maneje con Alert
+            throw e;
         } finally {
             setLoading(false);
         }
     };
 
-    /**
-     * Lógica para el botón de Cerrar Sesión.
-     */
     const handleLogout = async () => {
         try {
             await AuthService.logout();
-        } catch (e: any) {
-            console.error('Error al cerrar sesión:', e);
-            // Opcional: manejar si el cierre de sesión falla
+        } catch (e) {
+            console.error('Error al cerrar sesión', e);
         }
     };
 
     return {
-        name,
-        setName,
-        email,
-        setEmail,
-        password,
-        setPassword,
+        name, setName,
+        email, setEmail,
+        password, setPassword,
         loading,
-        error,
-        setError,
+        error, setError,
         handleLogin,
         handleRegister,
         handleLogout,
+        user,
     };
 };

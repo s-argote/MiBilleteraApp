@@ -69,7 +69,7 @@ export const TransactionsScreen = ({ navigation }: any) => {
                     <Text style={styles.transactionCategory}>{item.category} • {item.date}</Text>
                 </View>
                 <Text style={[styles.transactionAmount, amountStyle]}>
-                    {isExpense ? '-' : '+'} ${Math.abs(item.amount).toFixed(0)}
+                    {isExpense ? '-' : '+'} ${Math.abs(item.amount).toLocaleString('es-CO')}
                 </Text>
                 <TouchableOpacity style={styles.menuButton} onPress={() => openMenu(item)}>
                     <MaterialIcons name="more-vert" size={24} color="#888" />

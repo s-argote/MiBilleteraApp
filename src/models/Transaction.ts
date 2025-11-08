@@ -5,6 +5,7 @@ export interface Transaction {
     type: 'Ingreso' | 'Gasto';
     date: string; // Formato: "YYYY-MM-DD"
     category: string;
+    categoryId?: string;
     image?: string; // URL opcional de la imagen
     userId: string; // Para asociar la transacción con el usuario
     color?: string; // Color asociado a la categoría

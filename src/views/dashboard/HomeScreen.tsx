@@ -1,362 +1,675 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Dimensions, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AntDesign } from '@expo/vector-icons';
-import { db, auth } from '../../services/firebase';
-import { collection, onSnapshot, query, where, orderBy } from 'firebase/firestore';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useAuthViewModel } from '../../viewmodels/AuthViewModel';
+import { useDashboardViewModel } from '../../viewmodels/DashboardViewModel';
 import { PieChart, LineChart } from 'react-native-chart-kit';
+import { useNavigation } from "@react-navigation/native";
+import { doc, getDoc } from "firebase/firestore";
+import { db, auth } from "../../services/firebase";
 
 const screenWidth = Dimensions.get('window').width;
 
-type Transaction = {
-  id: string;
-  type: 'Ingreso' | 'Gasto' | string;
-  amount: number;
-  category?: string;
-  date: any;
-};
-
 export const HomeScreen: React.FC = () => {
-  const user = auth.currentUser;
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [categories, setCategories] = useState<{ name: string; color: string }[]>([]);
-  const [loading, setLoading] = useState(true);
+  const navigation = useNavigation<any>();
+  const { user } = useAuthViewModel();
+  const { balance, totalIncome, totalExpenses, pieData, lineData, loading, error } =
+    useDashboardViewModel();
+
+  const [profile, setProfile] = useState<any>(null);
+
+  //  cargar perfil desde Firestore
+  useEffect(() => {
+    const loadProfile = async () => {
+      const current = auth.currentUser;
+      if (!current) return;
+
+      const ref = doc(db, "users", current.uid);
+      const snap = await getDoc(ref);
+
+      if (snap.exists()) {
+        setProfile(snap.data());
+      }
+    };
+
+    loadProfile();
+  }, []);
+
   const [tooltip, setTooltip] = useState<{
     x: number;
     y: number;
     value: number | null;
     label?: string;
     color?: string;
-    type?: string;
   } | null>(null);
-
-  // 🔹 Cargar transacciones desde Firestore
-  useEffect(() => {
-    if (!user) return;
-
-    const q = query(
-      collection(db, 'transactions'),
-      where('userId', '==', user.uid),
-      orderBy('date', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const data = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...(doc.data() as any),
-        }));
-        setTransactions(data);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Error al cargar transacciones:', error);
-        Alert.alert('Error', 'No se pudieron cargar los datos del resumen financiero.');
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [user]);
-
-  // 🔹 Cargar categorías del usuario desde Firestore
-useEffect(() => {
-  if (!user) return;
-
-  const q = query(collection(db, 'categories'), where('userId', '==', user.uid));
-
-  const unsubscribe = onSnapshot(
-    q,
-    (snapshot) => {
-      const data = snapshot.docs.map((doc) => ({
-        name: doc.data().name,
-        color: doc.data().color,
-      }));
-      setCategories(data);
-    },
-    (error) => {
-      console.error('Error al cargar categorías:', error);
-    }
-  );
-
-  return () => unsubscribe();
-}, [user]);
-
-
-  // 🔹 Calcular ingresos, gastos y balance
-  const { totalIncome, totalExpenses, balance } = useMemo(() => {
-    const income = transactions
-      .filter((t) => t.type?.toLowerCase().includes('ingres'))
-      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
-
-    const expenses = transactions
-      .filter((t) => t.type?.toLowerCase().includes('gast'))
-      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
-
-    return { totalIncome: income, totalExpenses: expenses, balance: income - expenses };
-  }, [transactions]);
-
-  // 🔹 Datos del gráfico circular (usando los colores de las categorías)
-const pieData = useMemo(() => {
-  const grouped = new Map<string, number>();
-  transactions.forEach((t) => {
-    if (t.type?.toLowerCase().includes('gast')) {
-      const cat = t.category || 'Otros';
-      grouped.set(cat, (grouped.get(cat) || 0) + Math.abs(Number(t.amount)));
-    }
-  });
-
-  // 🔸 Asignar color desde las categorías guardadas
-  return Array.from(grouped.entries()).map(([name, value]) => {
-    const catColor =
-      categories.find((c) => c.name === name)?.color || '#9e9e9e'; // gris si no hay color definido
-    return {
-      name,
-      amount: value,
-      color: catColor,
-      legendFontColor: '#333',
-      legendFontSize: 12,
-    };
-  });
-}, [transactions, categories]);
-
-
-  // 🔹 Gráfico de líneas (Ingresos vs Gastos — 12 meses)
-  const lineData = useMemo(() => {
-    if (transactions.length === 0) return null;
-
-    const now = new Date();
-    const year = now.getFullYear();
-    const months = Array.from({ length: 12 }, (_, i) => ({
-      label: new Date(year, i, 1)
-        .toLocaleString('es-ES', { month: 'short' })
-        .toUpperCase(),
-      year,
-      month: i,
-    }));
-
-    const incomeData = months.map((m) => {
-      return transactions
-        .filter((t) => {
-          if (!t.date) return false;
-          const td = t.date?.toDate ? t.date.toDate() : new Date(t.date);
-          return (
-            td.getFullYear() === m.year &&
-            td.getMonth() === m.month &&
-            t.type?.toLowerCase().includes('ingres')
-          );
-        })
-        .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
-    });
-
-    const expenseData = months.map((m) => {
-      return transactions
-        .filter((t) => {
-          if (!t.date) return false;
-          const td = t.date?.toDate ? t.date.toDate() : new Date(t.date);
-          return (
-            td.getFullYear() === m.year &&
-            td.getMonth() === m.month &&
-            t.type?.toLowerCase().includes('gast')
-          );
-        })
-        .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
-    });
-
-    return {
-      labels: months.map((m) => m.label),
-      datasets: [
-        {
-          data: incomeData,
-          color: () => '#1B8A49', // Verde para ingresos
-          strokeWidth: 3,
-        },
-        {
-          data: expenseData,
-          color: () => '#D32F2F', // Rojo para gastos
-          strokeWidth: 3,
-        },
-      ],
-      legend: ['Ingresos', 'Gastos'],
-    };
-  }, [transactions]);
 
   if (loading) {
     return (
       <SafeAreaView style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color="#1E40AF" />
         <Text style={styles.loadingText}>Cargando tu resumen financiero...</Text>
       </SafeAreaView>
     );
   }
 
+  if (error) {
+    Alert.alert('Error', error);
+  }
+
+  // ancho del pie (para dejar espacio a la leyenda a la derecha)
+  const pieWidth = Math.min(screenWidth * 0.45, 260);
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        {/* Encabezado */}
+      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        {/* Header */}
         <View style={styles.header}>
-          <AntDesign name="home" size={22} color="#007AFF" />
-          <Text style={styles.headerText}>
-            Bienvenido, {user?.displayName || user?.email?.split('@')[0]}
-          </Text>
-        </View>
-
-        {/* Tarjeta resumen */}
-        <View style={styles.summaryCard}>
-          <Text style={styles.balanceLabel}>Saldo total</Text>
-          <Text style={[styles.balanceValue, { color: balance >= 0 ? '#1b8a49' : '#d32f2f' }]}>
-            ${balance.toLocaleString('es-CO', { maximumFractionDigits: 0 })}
-          </Text>
-
-          <View style={styles.row}>
-            <View style={styles.infoBox}>
-              <Text style={styles.infoTitle}>Ingresos</Text>
-              <Text style={[styles.infoValue, { color: '#1B8A49' }]}>
-                +${totalIncome.toLocaleString('es-CO', { maximumFractionDigits: 0 })}
+          <View style={styles.headerLeft}>
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarText}>
+                {(profile?.name?.[0] ||
+                  user?.displayName?.[0] ||
+                  user?.email?.[0] ||
+                  "U"
+                ).toUpperCase()}
               </Text>
             </View>
-            <View style={styles.infoBox}>
-              <Text style={styles.infoTitle}>Gastos</Text>
-              <Text style={[styles.infoValue, { color: '#D32F2F' }]}>
-                -${totalExpenses.toLocaleString('es-CO', { maximumFractionDigits: 0 })}
+            <View style={styles.greetingContainer}>
+              <Text style={styles.greetingText}>Hola,</Text>
+              <Text style={styles.userName}>
+                {profile?.name ||
+                  user?.displayName?.split(' ')[0] ||
+                  user?.email?.split('@')[0] ||
+                  "Usuario"}
               </Text>
             </View>
           </View>
+          <TouchableOpacity style={styles.notificationButton}>
+            <Ionicons name="notifications-outline" size={24} color="#374151" />
+            <View style={styles.notificationDot} />
+          </TouchableOpacity>
         </View>
 
-        {/* Gráfico de línea */}
+        {/* Balance */}
+        <LinearGradient
+          colors={['#1E40AF', '#3B82F6']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.summaryCard}
+        >
+          <View style={styles.balanceHeader}>
+            <Ionicons name="wallet-outline" size={24} color="#FFFFFF" />
+            <Text style={styles.balanceLabel}>Balance Total</Text>
+          </View>
+          <Text style={styles.balanceValue}>
+            ${balance.toLocaleString('es-CO', { maximumFractionDigits: 0 })}
+          </Text>
+
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <View style={[styles.iconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.2)' }]}>
+                <Ionicons name="arrow-down" size={20} color="#10B981" />
+              </View>
+              <Text style={styles.statLabel}>Ingresos</Text>
+              <Text style={styles.statValue}>
+                ${totalIncome.toLocaleString('es-CO', { maximumFractionDigits: 0 })}
+              </Text>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.statBox}>
+              <View style={[styles.iconContainer, { backgroundColor: 'rgba(239, 68, 68, 0.2)' }]}>
+                <Ionicons name="arrow-up" size={20} color="#EF4444" />
+              </View>
+              <Text style={styles.statLabel}>Gastos</Text>
+              <Text style={styles.statValue}>
+                ${totalExpenses.toLocaleString('es-CO', { maximumFractionDigits: 0 })}
+              </Text>
+            </View>
+          </View>
+        </LinearGradient>
+
+        {/* Gráfico de líneas */}
         {lineData && (
-          <>
-            <Text style={styles.sectionTitle}>Ingresos y Gastos Anuales</Text>
-            <View style={styles.chartWrapper}>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleContainer}>
+                <View style={styles.sectionIconContainer}>
+                  <Ionicons name="trending-up" size={20} color="#1E40AF" />
+                </View>
+                <Text style={styles.sectionTitle}>Evolución Anual</Text>
+              </View>
+              <TouchableOpacity onPress={() => navigation.navigate("Detalle Financiero", { section: "monthly" })}>
+                <Text style={styles.seeAllText}>Ver detalle</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.chartCard}>
               <LineChart
                 data={lineData}
-                width={screenWidth * 0.95}
-                height={280}
+                width={screenWidth * 0.85}
+                height={220}
                 bezier
                 chartConfig={{
-                  backgroundColor: '#fff',
-                  backgroundGradientFrom: '#fff',
-                  backgroundGradientTo: '#fff',
+                  backgroundColor: '#ffffff',
+                  backgroundGradientFrom: '#ffffff',
+                  backgroundGradientTo: '#ffffff',
                   decimalPlaces: 0,
-                  color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                  labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                  propsForDots: { r: '5', strokeWidth: '2', stroke: '#fff' },
+                  color: (opacity = 1) => `rgba(30, 64, 175, ${opacity * 0.8})`,
+                  labelColor: () => '#000000',
+                  formatYLabel: (value: string) => {
+                    const n = Number(value);
+                    if (isNaN(n)) return value;
+
+                    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace('.0', '') + 'M';
+                    if (n >= 1_000) return (n / 1_000).toFixed(1).replace('.0', '') + 'K';
+                    return n.toString();
+                  },
+                  propsForDots: {
+                    r: '4',
+                    strokeWidth: '2',
+                    stroke: '#ffffff',
+                  },
+                  propsForBackgroundLines: {
+                    strokeDasharray: '',
+                    stroke: '#E5E7EB',
+                    strokeWidth: 1,
+                  },
+                  propsForLabels: {
+                    fontFamily: 'System',
+                    fontWeight: 'bold',
+                    fontSize: 8,
+                    fill: '#000'
+                  },
                 }}
-                onDataPointClick={(data) => {
-          // ✅ Identificar si pertenece al dataset de ingresos o gastos
-                  const isIngreso = data.dataset.color().includes('#1B8A49');
-                  const datasetLabel = isIngreso ? 'Ingreso' : 'Gasto';
-                  const color = isIngreso ? '#1B8A49' : '#D32F2F';
+                style={styles.chart}
+                onDataPointClick={(data: any) => {
+                  const clickedDataset = data.dataset;
+
+                  // El color del ingreso lo pusiste como #1B8A49
+                  const isIngreso = clickedDataset.color && clickedDataset.color(1) === '#1B8A49';
 
                   setTooltip({
                     x: data.x,
                     y: data.y,
                     value: data.value,
-                    label: `${lineData.labels[data.index]} - ${datasetLabel}`,
-                    color,
-                    type: datasetLabel,
+                    label: `${lineData.labels[data.index]} - ${isIngreso ? 'Ingreso' : 'Gasto'}`,
+                    color: isIngreso ? '#1B8A49' : '#D32F2F',
                   });
-                  setTimeout(() => setTooltip(null), 2500);
+
+                  setTimeout(() => setTooltip(null), 3000);
                 }}
               />
+
               {tooltip && (
                 <View
                   style={[
                     styles.tooltip,
                     {
-                      left: tooltip.x - 60,
-                      top: tooltip.y - 50,
+                      left: Math.max(10, Math.min(tooltip.x - 60, screenWidth - 130)),
+                      top: tooltip.y - 60,
                       backgroundColor: tooltip.color,
                     },
                   ]}
                 >
-                  <Text style={styles.tooltipText}>
-                    {tooltip.label}
-                  </Text>
+                  <Text style={styles.tooltipText}>{tooltip.label}</Text>
                   <Text style={styles.tooltipValue}>
                     ${tooltip.value?.toLocaleString('es-CO')}
                   </Text>
                 </View>
               )}
             </View>
-          </>
+          </View>
         )}
 
-        {/* Gráfico circular */}
-        <Text style={styles.sectionTitle}>Distribución de Gastos</Text>
-        {pieData.length > 0 ? (
-          <View style={styles.chartWrapper}>
-            <PieChart
-              data={pieData}
-              width={screenWidth * 0.9}
-              height={220}
-              accessor="amount"
-              backgroundColor="transparent"
-              chartConfig={chartConfig}
-              hasLegend
-              absolute
-              center={[0, 0]}
-            />
+        {/* Gráfico circular + panel derecho con categorías y porcentajes */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleContainer}>
+              <View style={styles.sectionIconContainer}>
+                <Ionicons name="pie-chart" size={20} color="#1E40AF" />
+              </View>
+              <Text style={styles.sectionTitle}>Distribución de Gastos</Text>
+            </View>
           </View>
-        ) : (
-          <Text style={styles.emptyText}>No hay datos de gastos para mostrar.</Text>
-        )}
+
+          {pieData.length > 0 ? (
+            <>
+              <View style={[styles.chartCard, styles.pieRow]}>
+                <PieChart
+                  data={pieData}
+                  width={pieWidth}
+                  height={200}
+                  accessor="amount"
+                  backgroundColor="transparent"
+                  chartConfig={chartConfig}
+                  hasLegend={false}
+                  absolute
+                  center={[20, 0]}
+                  paddingLeft="15"
+                />
+
+                {/* Panel derecho con color + nombre + porcentaje */}
+                <View style={styles.pieSidePanel}>
+                  {pieData.map((item, index) => (
+                    <View key={index} style={styles.pieSideItem}>
+                      <View style={[styles.colorDot, { backgroundColor: item.color }]} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.legendName} numberOfLines={1}>
+                          {item.name}
+                        </Text>
+                        <Text style={styles.piePercent}>{item.percentage}%</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              {/* Lista completa de categorías con montos y porcentaje */}
+              <View style={styles.legendContainer}>
+                {pieData.map((item, index) => (
+                  <View key={index} style={styles.legendItem}>
+                    <View style={styles.legendLeft}>
+                      <View style={[styles.colorDot, { backgroundColor: item.color }]} />
+                      <Text style={styles.legendName} numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                    </View>
+
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={styles.legendAmount}>
+                        ${item.amount.toLocaleString('es-CO')}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </>
+          ) : (
+            <View style={styles.emptyStateContainer}>
+              <Ionicons name="pie-chart-outline" size={64} color="#D1D5DB" />
+              <Text style={styles.emptyText}>No hay datos de gastos</Text>
+              <Text style={styles.emptySubtext}>
+                Empieza a registrar tus gastos para ver la distribución
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Resumen rápido */}
+        <View style={styles.quickStatsContainer}>
+          <Text style={styles.quickStatsTitle}>Resumen del mes</Text>
+          <View style={styles.quickStatsRow}>
+            <View style={styles.quickStatCard}>
+              <View style={[styles.quickStatIcon, { backgroundColor: '#EEF2FF' }]}>
+                <Ionicons name="calendar-outline" size={24} color="#1E40AF" />
+              </View>
+              <Text style={styles.quickStatLabel}>Este mes</Text>
+              <Text style={styles.quickStatValue}>
+                {new Date().toLocaleDateString('es-ES', { month: 'long' })}
+              </Text>
+            </View>
+
+            <View style={styles.quickStatCard}>
+              <View style={[styles.quickStatIcon, { backgroundColor: '#FEF3F2' }]}>
+                <Ionicons name="trending-down-outline" size={24} color="#EF4444" />
+              </View>
+              <Text style={styles.quickStatLabel}>Gasto promedio anual</Text>
+              <Text style={styles.quickStatValue}>
+                ${Math.round(totalExpenses / 12).toLocaleString('es-CO')}
+              </Text>
+            </View>
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 };
 
-// 🔹 Configuración de gráficos
 const chartConfig = {
-  backgroundGradientFrom: '#fff',
-  backgroundGradientTo: '#fff',
-  color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-  labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+  backgroundGradientFrom: '#ffffff',
+  backgroundGradientTo: '#ffffff',
+  color: (opacity = 1) => `rgba(30, 64, 175, ${opacity})`,
+  labelColor: (opacity = 1) => `rgba(107, 114, 128, ${opacity})`,
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F7F8FA' },
-  scrollContainer: { alignItems: 'center', paddingVertical: 20 },
-  loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 10, fontSize: 15, color: '#555' },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
-  headerText: { fontSize: 17, fontWeight: '600', marginLeft: 10 },
-  summaryCard: {
-    width: '90%',
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 18,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-    marginBottom: 25,
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
   },
-  balanceLabel: { color: '#777', fontSize: 14 },
-  balanceValue: { fontSize: 28, fontWeight: 'bold', marginVertical: 6, textAlign: 'center' },
-  row: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 10 },
-  infoBox: { alignItems: 'center' },
-  infoTitle: { fontSize: 13, color: '#777' },
-  infoValue: { fontSize: 16, fontWeight: '700', marginTop: 2 },
-  sectionTitle: {
+  scrollContainer: {
+    paddingBottom: 30,
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+  },
+  loadingText: {
+    marginTop: 16,
     fontSize: 16,
-    fontWeight: '700',
-    marginVertical: 10,
-    color: '#333',
-    textAlign: 'center',
+    color: '#6B7280',
+    fontWeight: '500',
   },
-  chartWrapper: { width: '100%', alignItems: 'center', justifyContent: 'center' },
-  chart: { marginVertical: 10, borderRadius: 16, alignSelf: 'center' },
+
+  // Header
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  avatarCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#1E40AF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  greetingContainer: {
+    justifyContent: 'center',
+  },
+  greetingText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  userName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  notificationButton: {
+    position: 'relative',
+    padding: 8,
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+  },
+
+  // Balance Card
+  summaryCard: {
+    marginHorizontal: 20,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: '#1E40AF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  balanceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  balanceLabel: {
+    fontSize: 14,
+    color: '#E0E7FF',
+    fontWeight: '500',
+  },
+  balanceValue: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 20,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statBox: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#E0E7FF',
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  divider: {
+    width: 1,
+    height: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    marginHorizontal: 16,
+  },
+
+  // Sections
+  section: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  seeAllText: {
+    fontSize: 14,
+    color: '#1E40AF',
+    fontWeight: '600',
+  },
+
+  // Charts
+  chartCard: {
+    marginHorizontal: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  chart: {
+    marginVertical: 8,
+    borderRadius: 16,
+  },
   tooltip: {
     position: 'absolute',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 8,
     zIndex: 10,
+    minWidth: 120,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  tooltipText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
-  tooltipValue: { color: '#fff', fontSize: 13, marginTop: 2 },
-  emptyText: { textAlign: 'center', color: '#999', fontSize: 15, marginTop: 15 },
+  tooltipText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  tooltipValue: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginTop: 2,
+  },
+
+  // Pie row (chart + side panel)
+  pieRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  pieSidePanel: {
+    flex: 1,
+    gap: 8,
+    paddingLeft: 8,
+  },
+  pieSideItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  piePercent: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+
+  // Legend list (debajo)
+  legendContainer: {
+    marginHorizontal: 20,
+    marginTop: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    gap: 12,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  legendLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  colorDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  legendName: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+    flex: 1,
+  },
+  legendAmount: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+
+  // Empty State
+  emptyStateContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+
+  // Quick Stats
+  quickStatsContainer: {
+    marginHorizontal: 20,
+    marginTop: 8,
+  },
+  quickStatsTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  quickStatsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  quickStatCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  quickStatIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  quickStatLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  quickStatValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
 });

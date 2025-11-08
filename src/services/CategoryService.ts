@@ -4,60 +4,62 @@ import { getAuth } from 'firebase/auth';
 
 const COLLECTION_NAME = 'categories';
 
-/**
- * Servicio para gestionar categorías en Firestore.
- */
+// Normaliza nombres: quita espacios extra y pone lowercase
+const normalize = (text: string) =>
+    text.trim().replace(/\s+/g, ' ');
+
 export const CategoryService = {
-    /**
-     * Obtiene todas las categorías del usuario autenticado.
-     * @returns {Promise<Array>} Lista de categorías.
-     */
+
+    /**  Obtiene todas las categorías del usuario */
     async getCategories() {
         const auth = getAuth();
         const user = auth.currentUser;
         if (!user) throw new Error('Usuario no autenticado');
 
-        const q = query(collection(db, COLLECTION_NAME), where('userId', '==', user.uid));
+        const q = query(
+            collection(db, COLLECTION_NAME),
+            where('userId', '==', user.uid)
+        );
+
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return snapshot.docs.map(d => ({
+            id: d.id,
+            ...d.data()
+        }));
     },
 
-    /**
-     * Agrega una nueva categoría con el userId del usuario actual.
-     * @param {Object} category - Objeto con nombre y color.
-     */
+    /**  Agrega categoría con nombre limpio */
     async addCategory(category: { name: string; color: string }) {
         const auth = getAuth();
         const user = auth.currentUser;
         if (!user) throw new Error('Usuario no autenticado');
 
-        await addDoc(collection(db, COLLECTION_NAME), {
-            ...category,
+        const cleanCategory = {
+            name: normalize(category.name),
+            color: category.color.trim(),
             userId: user.uid,
-        });
+        };
+
+        return await addDoc(collection(db, COLLECTION_NAME), cleanCategory);
     },
 
-    /**
-     * Actualiza una categoría existente.
-     * @param {string} id - ID de la categoría.
-     * @param {Object} category - Datos a actualizar (nombre y/o color).
-     */
+    /**  Actualiza categoría (solo los valores que lleguen) */
     async updateCategory(id: string, category: { name?: string; color?: string }) {
-        const auth = getAuth();
-        const user = auth.currentUser;
-        if (!user) throw new Error('Usuario no autenticado');
+
+        const cleanData: any = {};
+
+        if (category.name !== undefined) {
+            cleanData.name = normalize(category.name);
+        }
+        if (category.color !== undefined) {
+            cleanData.color = category.color.trim();
+        }
 
         const ref = doc(db, COLLECTION_NAME, id);
-        await updateDoc(ref, {
-            ...category,
-            userId: user.uid, // Asegura que la categoría siga perteneciendo al usuario.
-        });
+        await updateDoc(ref, cleanData);
     },
 
-    /**
-     * Elimina una categoría por su ID.
-     * @param {string} id - ID de la categoría.
-     */
+    /**  Elimina categoría */
     async deleteCategory(id: string) {
         const ref = doc(db, COLLECTION_NAME, id);
         await deleteDoc(ref);

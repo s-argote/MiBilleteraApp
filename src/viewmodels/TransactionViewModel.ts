@@ -34,19 +34,13 @@ export const useTransactionViewModel = () => {
         }
     };
 
-    /**
-     * Actualiza una transacción existente.
-     */
-    const updateTransaction = async (id: string, transaction: Partial<Transaction>) => {
+    /** * Actualiza una transacción existente. */
+    const updateTransaction = async (id: string, transaction:
+        Partial<Transaction>) => {
         try {
             await TransactionService.updateTransaction(id, transaction);
-            setTransactions(prev =>
-                prev.map(t => (t.id === id ? { ...t, ...transaction } : t))
-            );
-        } catch (error) {
-            console.error("Error al actualizar transacción:", error);
-            throw error;
-        }
+            setTransactions(prev => prev.map(t => (t.id === id ? { ...t, ...transaction } : t)));
+        } catch (error) { console.error("Error al actualizar transacción:", error); throw error; }
     };
 
     /**

@@ -1,11 +1,6 @@
-import {
-    signInWithEmailAndPassword,
-    signOut,
-    onAuthStateChanged,
-    createUserWithEmailAndPassword,
-    User
-} from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendEmailVerification, User } from 'firebase/auth';
 import { auth } from './firebase';
+
 
 export const AuthService = {
     /**
@@ -21,6 +16,9 @@ export const AuthService = {
      */
     async register(email: string, password: string): Promise<User> {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        //  Enviar email de verificación
+        await sendEmailVerification(userCredential.user);
+
         return userCredential.user;
     },
 

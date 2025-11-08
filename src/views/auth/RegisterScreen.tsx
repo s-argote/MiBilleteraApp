@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Image, Alert, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import React from 'react';
+import { View, Text, TextInput, TouchableOpacity, Image, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useAuthViewModel } from '../../viewmodels/AuthViewModel';
 import { RegisterStyles as styles } from '../../styles/RegisterStyles';
 
 export const RegisterScreen = ({ navigation }: any) => {
   const { name, setName, email, setEmail, password, setPassword, loading, error, setError, handleRegister } = useAuthViewModel();
-
-  const [showPassword, setShowPassword] = React.useState(false); // controla visibilidad de la contraseña
+  const [showPassword, setShowPassword] = React.useState(false);
 
   const onPressRegister = async () => {
     if (!name.trim() || !email.trim() || !password.trim()) {
@@ -21,18 +20,21 @@ export const RegisterScreen = ({ navigation }: any) => {
 
     try {
       await handleRegister();
-      Alert.alert('¡Cuenta creada!', 'Ahora puedes iniciar sesión.');
-      navigation.navigate('Iniciar Sesión');
+
+      Alert.alert(
+        'Cuenta creada',
+        'Te enviamos un correo para verificar tu cuenta antes de iniciar sesión.'
+      );
+
+      navigation.navigate('Verificar Email');
+
     } catch (err: any) {
-      Alert.alert('Error de Registro', err.message || 'No se pudo registrar.');
+      Alert.alert('Error de Registro', error || 'No se pudo registrar.');
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <Image source={require('../../../assets/images/logo.png')} style={styles.logo} />
 
@@ -66,36 +68,28 @@ export const RegisterScreen = ({ navigation }: any) => {
               style={styles.passwordInput}
               placeholderTextColor="#999"
             />
-
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
-              <Text style={{ fontSize: 16 }}>
-                {showPassword ? '🙈' : '👁'}
-              </Text>
+              <Text style={{ fontSize: 16 }}>{showPassword ? '🙈' : '👁'}</Text>
             </TouchableOpacity>
           </View>
 
           {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-          <TouchableOpacity
-            style={styles.button}
-            onPress={onPressRegister}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Registrarme</Text>
-            )}
+          <TouchableOpacity style={styles.button} onPress={onPressRegister} disabled={loading}>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Registrarme</Text>}
           </TouchableOpacity>
 
-          <Text style={styles.loginText}>
-            ¿Ya tienes cuenta?{' '}
-            <Text style={styles.loginLink} onPress={() => navigation.navigate('Iniciar Sesión')}>
-              Inicia sesión
+          <Text style={styles.verifyText}>
+            ¿Ya te registraste?{" "}
+            <Text
+              style={styles.verifyLink}
+              onPress={() => navigation.navigate("Verificar Email")}
+            >
+              Verificar correo
             </Text>
           </Text>
         </View>
       </ScrollView>
-    </KeyboardAvoidingView >
+    </KeyboardAvoidingView>
   );
 };

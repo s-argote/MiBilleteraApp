@@ -90,5 +90,16 @@ export const RegisterStyles = StyleSheet.create({
     },
     eyeButton: {
         paddingHorizontal: 10,
-    }
+    },
+    verifyText: {
+        textAlign: "center",
+        marginTop: 10,
+        color: "#555",
+    },
+
+    verifyLink: {
+        color: "#007AFF",
+        fontWeight: "600",
+    },
+
 });

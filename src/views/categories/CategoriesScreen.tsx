@@ -58,7 +58,9 @@ export const CategoriesScreen = ({ navigation }: any) => {
 
         Alert.alert(
             'Eliminar categoría',
-            `¿Estás seguro de eliminar la categoría "${categoryToDelete.name}"?`,
+            `¿Estás seguro de eliminar la categoría "${categoryToDelete.name}"?
+
+Esta acción también eliminará todas las transacciones asociadas a esta categoría.`,
             [
                 { text: 'Cancelar', style: 'cancel' },
                 {
@@ -66,7 +68,10 @@ export const CategoriesScreen = ({ navigation }: any) => {
                     style: 'destructive',
                     onPress: async () => {
                         await deleteCategory(categoryToDelete.id);
-                        Alert.alert('Eliminado', `La categoría "${categoryToDelete.name}" ha sido eliminada.`);
+                        Alert.alert(
+                            'Eliminado',
+                            `La categoría "${categoryToDelete.name}" y sus transacciones asociadas han sido eliminadas.`
+                        );
                     },
                 },
             ]

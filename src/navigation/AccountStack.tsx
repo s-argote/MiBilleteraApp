@@ -4,7 +4,9 @@ import { AccountScreen } from '../views/account/AccountScreen';
 import { ProfileScreen } from '../views/account/ProfileScreen';
 import { BudgetsScreen } from '../views/account/BudgetsScreen';
 import { HistoryScreen } from '../views/account/HistoryScreen';
+
 const Stack = createNativeStackNavigator();
+
 export const AccountStack = () => {
     return (
         <Stack.Navigator screenOptions={{ headerShown: false }}>

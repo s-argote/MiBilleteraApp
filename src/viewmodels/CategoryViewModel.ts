@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
 import { CategoryService } from '../services/CategoryService';
+import { TransactionService } from '../services/TransactionService';
 
-//ViewModel para gestionar el estado y la lógica de negocio de las categorías/
+// Normalizador robusto
+const normalize = (text: string) =>
+    text.trim().replace(/\s+/g, " ").toLowerCase();
+
 export const useCategoryViewModel = () => {
     const [categories, setCategories] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
-    //Carga las categorías del usuario desde Firestore.
+    // Cargar categorías
     const loadCategories = async () => {
         setLoading(true);
         try {
@@ -19,68 +23,88 @@ export const useCategoryViewModel = () => {
         }
     };
 
+    // Validar si ya existe una categoría
     const categoryExists = (name: string): boolean => {
-        return categories.some(cat => cat.name.toLowerCase() === name.toLowerCase());
+        const clean = normalize(name);
+        return categories.some(cat => normalize(cat.name) === clean);
     };
 
-    /**
-     * Agrega una nueva categoría.
-     * @param {string} name - Nombre de la categoría.
-     * @param {string} color - Color de la categoría.
-     */
+    // Agregar categoría
     const addCategory = async (name: string, color: string) => {
-        if (categoryExists(name)) {
-            throw new Error('Ya existe una categoría con ese nombre.');
+        const cleanName = name.trim().replace(/\s+/g, " ");
+
+        if (categoryExists(cleanName)) {
+            throw new Error("Ya existe una categoría con ese nombre.");
         }
+
         try {
-            await CategoryService.addCategory({ name, color });
-            await loadCategories(); // Recarga la lista.
+            await CategoryService.addCategory({ name: cleanName, color });
+            await loadCategories();
         } catch (error) {
             console.error("Error al agregar categoría:", error);
             throw error;
         }
     };
 
-    /**
-     * Elimina una categoría.
-     * @param {string} id - ID de la categoría.
-     */
+    // Eliminar categoría + transacciones asociadas
     const deleteCategory = async (id: string) => {
         try {
+            // 1. Eliminar transacciones que usen esta categoría
+            await TransactionService.deleteTransactionsByCategory(id);
+
+            // 2. Eliminar la categoría
             await CategoryService.deleteCategory(id);
-            await loadCategories(); // Recarga la lista.
+
+            // 3. Recargar categorías
+            await loadCategories();
         } catch (error) {
             console.error("Error al eliminar categoría:", error);
             throw error;
         }
     };
 
-    /**
-     * Actualiza una categoría existente.
-     * @param {string} id - ID de la categoría.
-     * @param {Object} data - Nuevos datos (nombre y/o color).
-     */
-    const updateCategory = async (id: string, data: { name?: string; color?: string }) => {
-        // Validación: si se está cambiando el nombre, verificar que no exista otra categoría con ese nombre
+    // Actualizar categoría + transacciones
+    const updateCategory = async (
+        id: string,
+        data: { name?: string; color?: string }
+    ) => {
+        const updatedData: { name?: string; color?: string } = {};
+
+        // Validar nombre si se va a cambiar
         if (data.name != null) {
-            const newName = data.name; // Asigna a una variable para evitar errores de tipado
-            const exists = categories.some(cat =>
-                cat.id !== id && cat.name.toLowerCase() === newName.toLowerCase()
+            const newCleanName = normalize(data.name);
+
+            const exists = categories.some(
+                cat => cat.id !== id && normalize(cat.name) === newCleanName
             );
+
             if (exists) {
-                throw new Error('Ya existe una categoría con ese nombre.');
+                throw new Error("Ya existe una categoría con ese nombre.");
             }
+
+            updatedData.name = data.name.trim().replace(/\s+/g, " ");
         }
+
+        // Validar color
+        if (data.color) {
+            updatedData.color = data.color;
+        }
+
         try {
-            await CategoryService.updateCategory(id, data);
-            await loadCategories(); // Recarga la lista.
+            // 1. Actualizar categoría
+            await CategoryService.updateCategory(id, updatedData);
+
+            // 2. Actualizar transacciones relacionadas
+            await TransactionService.updateTransactionsCategoryColor(id, updatedData);
+
+            // 3. Recargar categorías
+            await loadCategories();
         } catch (error) {
             console.error("Error al actualizar categoría:", error);
             throw error;
         }
     };
 
-    // Cargar categorías cuando el ViewModel se inicializa.
     useEffect(() => {
         loadCategories();
     }, []);
@@ -92,6 +116,6 @@ export const useCategoryViewModel = () => {
         deleteCategory,
         updateCategory,
         categoryExists,
-        loadCategories, // Para recargar manualmente si es necesario.
+        loadCategories,
     };
 };

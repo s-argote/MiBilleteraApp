@@ -4,6 +4,7 @@ import { WelcomeScreen } from './src/views/auth/WelcomeScreen';
 import { LoginScreen } from './src/views/auth/LoginScreen';
 import { RegisterScreen } from './src/views/auth/RegisterScreen';
 import { MainTabNavigator } from './src/navigation/MainTabNavigator';
+import { VerifyEmailScreen } from './src/views/auth/VerifyEmailScree';
 import { AuthService } from './src/services/AuthService';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 
@@ -12,8 +13,21 @@ const App = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = AuthService.onAuthStateChanged((firebaseUser) => {
-      setUser(firebaseUser ? { uid: firebaseUser.uid } : null);
+    const unsubscribe = AuthService.onAuthStateChanged(async (firebaseUser) => {
+
+      if (firebaseUser) {
+        //  Necesario para actualizar emailVerified
+        await firebaseUser.reload();
+
+        if (firebaseUser.emailVerified) {
+          setUser({ uid: firebaseUser.uid });
+        } else {
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
+
       setLoading(false);
     });
 
@@ -50,6 +64,7 @@ const AuthStack = () => {
       <Stack.Screen name="Bienvenida" component={WelcomeScreen} />
       <Stack.Screen name="Iniciar Sesión" component={LoginScreen} />
       <Stack.Screen name="Registro" component={RegisterScreen} />
+      <Stack.Screen name="Verificar Email" component={VerifyEmailScreen} />
     </Stack.Navigator>
   );
 };

@@ -7,7 +7,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useTransactionViewModel } from '../../viewmodels/TransactionViewModel';
 import { useCategoryViewModel } from '../../viewmodels/CategoryViewModel';
 
-// 👇 IMPORTA getAuth para obtener el userId
+//  IMPORTA getAuth para obtener el userId
 import { getAuth } from 'firebase/auth';
 
 import { Transaction } from '../../models/Transaction';
@@ -58,7 +58,7 @@ export const AddTransactionsScreen = ({ navigation }: any) => {
     }
 
     try {
-      // 👇 Obtiene el userId
+      //  Obtiene el userId
       const auth = getAuth();
       const user = auth.currentUser;
       if (!user) {
@@ -66,13 +66,14 @@ export const AddTransactionsScreen = ({ navigation }: any) => {
         return;
       }
 
-      // 👇 Crea el objeto con userId
+      //  Crea el objeto con userId
       const newTransaction: Omit<Transaction, 'id'> = {
         title: title.trim(),
         amount: type === 'Gasto' ? -parsedAmount : parsedAmount,
         type,
         date: date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0'),
         category,
+        categoryId: categories.find(c => c.name === category)?.id || null,
         image: imageUri || '',
         userId: user.uid, //  Incluido
         color: categories.find(c => c.name === category)?.color || '#ccc',
