@@ -1,56 +1,50 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, Image, Animated } from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useAuthViewModel } from '../../viewmodels/AuthViewModel';
-import { auth, db } from "../../services/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { useAuthContext } from '../../context/AuthContext';
+
 export const AccountScreen = ({ navigation }: any) => {
-    const { handleLogout } = useAuthViewModel();
-    const [profile, setProfile] = useState<any>(null);
+    const { logout, profile, user } = useAuthContext();
     const scaleAnim = new Animated.Value(1);
+
     const animatePress = () => {
         Animated.sequence([
             Animated.timing(scaleAnim, { toValue: 0.97, duration: 80, useNativeDriver: true }),
             Animated.timing(scaleAnim, { toValue: 1, duration: 80, useNativeDriver: true })
         ]).start();
     };
-    useEffect(() => {
-        const loadProfile = async () => {
-            const user = auth.currentUser;
-            if (!user) return;
-            const ref = doc(db, "users", user.uid);
-            const snap = await getDoc(ref);
-            if (snap.exists()) setProfile(snap.data());
-        };
-        loadProfile();
-    }, []);
+
     const handleLogoutPress = () => {
         Alert.alert(
             'Cerrar Sesión',
             '¿Estás seguro de que deseas cerrar sesión?',
             [
                 { text: 'Cancelar', style: 'cancel' },
-                { text: 'Cerrar Sesión', style: 'destructive', onPress: handleLogout },
+                { text: 'Cerrar Sesión', style: 'destructive', onPress: logout },
             ]
         );
     };
+
     return (
         <SafeAreaView style={styles.container}>
-            {/* HEADER - PERFIL */}
+
+            {/* HEADER */}
             <View style={styles.profileContainer}>
                 <View style={styles.avatar}>
                     <Text style={styles.avatarText}>
-                        {(profile?.name?.[0] || auth.currentUser?.email?.[0] || "U").toUpperCase()}
+                        {(profile?.name?.[0] || user?.email?.[0] || "U").toUpperCase()}
                     </Text>
                 </View>
+
                 <Text style={styles.profileName}>
                     {profile?.name || "Usuario"}
                 </Text>
                 <Text style={styles.profileEmail}>
-                    {auth.currentUser?.email}
+                    {user?.email}
                 </Text>
             </View>
+
             {/* OPCIONES */}
             <View style={styles.buttonsContainer}>
                 {[
@@ -72,90 +66,40 @@ export const AccountScreen = ({ navigation }: any) => {
                         </TouchableOpacity>
                     </Animated.View>
                 ))}
+
                 {/* CERRAR SESIÓN */}
                 <TouchableOpacity style={[styles.optionButton, styles.logoutButton]} onPress={handleLogoutPress}>
                     <MaterialIcons name="logout" size={26} color="#FF3B30" />
                     <Text style={[styles.optionText, styles.logoutText]}>Cerrar sesión</Text>
                 </TouchableOpacity>
             </View>
-            {/* FOOTER */}
+
             <Text style={styles.footer}>MiBilleteraApp • versión 1.0.0</Text>
+
         </SafeAreaView>
     );
 };
+
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#F1F5F9",
-        alignItems: "center"
-    },
-    // Perfil
-    profileContainer: {
-        width: "100%",
-        alignItems: "center",
-        paddingVertical: 32,
-        backgroundColor: "white",
-        borderBottomLeftRadius: 25,
-        borderBottomRightRadius: 25,
-        marginBottom: 20
-    },
+    container: { flex: 1, backgroundColor: '#f8f9fa' },
+    profileContainer: { alignItems: 'center', paddingVertical: 30 },
     avatar: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: "#007AFF20",
-        justifyContent: "center",
-        alignItems: "center",
-        marginBottom: 12,
+        width: 90, height: 90, borderRadius: 45,
+        backgroundColor: '#007AFF22',
+        justifyContent: 'center', alignItems: 'center',
     },
-    avatarText: {
-        fontSize: 36,
-        fontWeight: "700",
-        color: "#007AFF",
-    },
-    profileName: {
-        fontSize: 22,
-        fontWeight: "700",
-        color: "#333",
-    },
-    profileEmail: {
-        fontSize: 14,
-        color: "#6B7280",
-        marginTop: 4,
-    },
-    // Botones
-    buttonsContainer: {
-        width: "90%",
-        marginTop: 10,
-    },
+    avatarText: { fontSize: 36, color: '#007AFF', fontWeight: '700' },
+    profileName: { marginTop: 10, fontSize: 20, fontWeight: '700', color: '#333' },
+    profileEmail: { fontSize: 14, color: '#666' },
+    buttonsContainer: { marginTop: 20, paddingHorizontal: 20, gap: 10 },
     optionButton: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: "#fff",
-        paddingVertical: 16,
-        paddingHorizontal: 18,
-        borderRadius: 14,
-        marginBottom: 14,
-        shadowColor: "#000",
-        shadowOpacity: 0.08,
-        shadowRadius: 4,
-        elevation: 2,
+        flexDirection: 'row', alignItems: 'center',
+        backgroundColor: '#fff',
+        padding: 16, borderRadius: 12,
+        shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 3,
     },
-    optionText: {
-        fontSize: 16,
-        fontWeight: "600",
-        marginLeft: 12,
-        color: "#333",
-    },
-    logoutButton: {
-        backgroundColor: "#FFF4F4",
-    },
-    logoutText: {
-        color: "#FF3B30",
-    },
-    footer: {
-        marginTop: 20,
-        color: "#9CA3AF",
-        fontSize: 12,
-    }
+    optionText: { fontSize: 16, marginLeft: 15, color: '#333' },
+    logoutButton: { marginTop: 20, borderColor: '#FF3B30', borderWidth: 1 },
+    logoutText: { color: '#FF3B30' },
+    footer: { textAlign: 'center', marginTop: 20, color: '#aaa' },
 });

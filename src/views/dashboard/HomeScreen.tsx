@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthViewModel } from '../../viewmodels/AuthViewModel';
 import { useDashboardViewModel } from '../../viewmodels/DashboardViewModel';
+import { useAuthContext } from '../../context/AuthContext';
 import { PieChart, LineChart } from 'react-native-chart-kit';
 import { useNavigation } from "@react-navigation/native";
 import { doc, getDoc } from "firebase/firestore";
@@ -14,28 +15,9 @@ const screenWidth = Dimensions.get('window').width;
 
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const { user } = useAuthViewModel();
   const { balance, totalIncome, totalExpenses, pieData, lineData, loading, error } =
     useDashboardViewModel();
-
-  const [profile, setProfile] = useState<any>(null);
-
-  //  cargar perfil desde Firestore
-  useEffect(() => {
-    const loadProfile = async () => {
-      const current = auth.currentUser;
-      if (!current) return;
-
-      const ref = doc(db, "users", current.uid);
-      const snap = await getDoc(ref);
-
-      if (snap.exists()) {
-        setProfile(snap.data());
-      }
-    };
-
-    loadProfile();
-  }, []);
+  const { user, profile } = useAuthContext();
 
   const [tooltip, setTooltip] = useState<{
     x: number;
@@ -48,7 +30,7 @@ export const HomeScreen: React.FC = () => {
   if (loading) {
     return (
       <SafeAreaView style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="#1E40AF" />
+        <ActivityIndicator size="large" color="#007AFF" />
         <Text style={styles.loadingText}>Cargando tu resumen financiero...</Text>
       </SafeAreaView>
     );
@@ -76,16 +58,18 @@ export const HomeScreen: React.FC = () => {
                 ).toUpperCase()}
               </Text>
             </View>
+
             <View style={styles.greetingContainer}>
               <Text style={styles.greetingText}>Hola,</Text>
               <Text style={styles.userName}>
                 {profile?.name ||
-                  user?.displayName?.split(' ')[0] ||
-                  user?.email?.split('@')[0] ||
+                  user?.displayName?.split(" ")[0] ||
+                  user?.email?.split("@")[0] ||
                   "Usuario"}
               </Text>
             </View>
           </View>
+
           <TouchableOpacity style={styles.notificationButton}>
             <Ionicons name="notifications-outline" size={24} color="#374151" />
             <View style={styles.notificationDot} />
