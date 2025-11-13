@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Modal, Alert, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useTransactionViewModel } from '../../viewmodels/TransactionViewModel';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -12,7 +13,7 @@ export const TransactionsScreen = ({ navigation }: any) => {
 
     useFocusEffect(
         React.useCallback(() => {
-            loadTransactions(); // Recarga cada vez que la pantalla se muestra
+            loadTransactions();
         }, [])
     );
 
@@ -32,91 +33,317 @@ export const TransactionsScreen = ({ navigation }: any) => {
         navigation.navigate('Editar Transacción', { transaction: selectedTransaction });
     };
 
+    const formatLocalDate = (dateString: string) => {
+        if ((dateString as any)?.toDate) {
+            const d = (dateString as any).toDate();
+            return new Intl.DateTimeFormat('es-ES', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+            }).format(d);
+        }
+
+        const [year, month, day] = dateString.split('-').map(Number);
+        const localDate = new Date(year, month - 1, day);
+
+        return new Intl.DateTimeFormat('es-ES', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+        }).format(localDate);
+    };
+
     const handleDelete = () => {
         if (!selectedTransaction) return;
         const transactionToDelete = selectedTransaction;
         closeMenu();
 
         Alert.alert(
-            'Eliminar Transacción',
-            `¿Estás seguro de eliminar la transacción "${transactionToDelete.title}" de ${transactionToDelete.amount}?`,
+            '¿Eliminar transacción?',
+            `Se eliminará "${transactionToDelete.title}" por $${Math.abs(transactionToDelete.amount).toLocaleString('es-CO')}`,
             [
-                { text: 'No', style: 'cancel' },
+                { text: 'Cancelar', style: 'cancel' },
                 {
-                    text: 'Sí, Eliminar',
+                    text: 'Eliminar',
                     style: 'destructive',
                     onPress: async () => {
                         await deleteTransaction(transactionToDelete.id);
-                        Alert.alert('Eliminado', `La transacción "${transactionToDelete.title}" ha sido eliminada.`);
+                        Alert.alert('¡Eliminado!', 'La transacción ha sido eliminada.');
                     },
                 },
             ]
         );
     };
 
+    // Calcular totales
+    const totals = transactions.reduce(
+        (acc, item) => {
+            if (item.type === 'Ingreso') {
+                acc.income += Math.abs(item.amount);
+            } else {
+                acc.expense += Math.abs(item.amount);
+            }
+            return acc;
+        },
+        { income: 0, expense: 0 }
+    );
+
     const renderItem = ({ item }: { item: any }) => {
         const isExpense = item.type === 'Gasto';
-        const amountStyle = isExpense ? styles.expenseText : styles.incomeText;
 
         return (
-            <View style={styles.transactionItem}>
-                <Image source={{ uri: item.image || 'https://via.placeholder.com/50/ccc/333?text=IMG' }} style={styles.transactionImage} />
-                <View style={styles.detailsContainer}>
-                    <View style={styles.titleRow}>
-                        <Text style={[styles.transactionTitle, { flex: 1 }]} numberOfLines={1}>{item.title}</Text>
-                        <View style={[styles.categoryColorCircle, { backgroundColor: item.color || '#ccc' }]} />
-                    </View>
-                    <Text style={styles.transactionCategory}>{item.category} • {item.date}</Text>
+            <TouchableOpacity
+                style={styles.transactionCard}
+                activeOpacity={0.7}
+                onLongPress={() => openMenu(item)}
+            >
+                <View
+                    style={[
+                        styles.transactionIconContainer,
+                        { backgroundColor: isExpense ? '#FEF2F2' : '#ECFDF5' }
+                    ]}
+                >
+                    {item.image ? (
+                        <Image source={{ uri: item.image }} style={styles.transactionImage} />
+                    ) : (
+                        <Text style={styles.transactionEmoji}>
+                            {isExpense ? '💸' : '💰'}
+                        </Text>
+                    )}
                 </View>
-                <Text style={[styles.transactionAmount, amountStyle]}>
-                    {isExpense ? '-' : '+'} ${Math.abs(item.amount).toLocaleString('es-CO')}
-                </Text>
-                <TouchableOpacity style={styles.menuButton} onPress={() => openMenu(item)}>
-                    <MaterialIcons name="more-vert" size={24} color="#888" />
+
+                <View style={styles.transactionContent}>
+                    <View style={styles.transactionHeader}>
+                        <Text style={styles.transactionTitle} numberOfLines={1}>
+                            {item.title}
+                        </Text>
+                        <Text
+                            style={[
+                                styles.transactionAmount,
+                                { color: isExpense ? '#EF4444' : '#10B981' }
+                            ]}
+                        >
+                            {isExpense ? '-' : '+'}$
+                            {Math.abs(item.amount).toLocaleString('es-CO')}
+                        </Text>
+                    </View>
+
+                    <View style={styles.transactionFooter}>
+                        <View style={styles.categoryBadge}>
+                            <View
+                                style={[
+                                    styles.categoryDot,
+                                    { backgroundColor: item.color || '#9CA3AF' }
+                                ]}
+                            />
+                            <Text style={styles.categoryText} numberOfLines={1}>
+                                {item.category}
+                            </Text>
+                        </View>
+
+                        <View style={styles.dateContainer}>
+                            <Ionicons name="calendar-outline" size={12} color="#9CA3AF" />
+                            <Text style={styles.dateText}>{formatLocalDate(item.date)}</Text>
+                        </View>
+                    </View>
+                </View>
+
+                <TouchableOpacity
+                    style={styles.moreButton}
+                    onPress={() => openMenu(item)}
+                >
+                    <Ionicons name="ellipsis-vertical" size={20} color="#6B7280" />
                 </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
         );
     };
 
-    const handleAddTransaction = () => {
-        navigation.navigate('Agregar Transacción');
-    };
-
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <Text style={styles.title}>Mis Transacciones</Text>
-                <TouchableOpacity style={styles.addButton} onPress={handleAddTransaction}>
-                    <MaterialIcons name="add" size={24} color="#fff" />
-                </TouchableOpacity>
-            </View>
+        <SafeAreaView style={styles.safeArea}>
+            {/* Header con gradiente */}
+            <LinearGradient
+                colors={['#1E40AF', '#3B82F6']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.header}
+            >
+                <View style={styles.headerContent}>
+                    <View style={styles.headerLeft}>
+                        <Ionicons name="receipt" size={28} color="#FFFFFF" />
+                        <Text style={styles.headerTitle}>Mis Transacciones</Text>
+                    </View>
+                    <View style={styles.headerStats}>
+                        <Text style={styles.statsText}>{transactions.length} registros</Text>
+                    </View>
+                </View>
+            </LinearGradient>
 
+            {/* Resumen */}
+            {transactions.length > 0 && (
+                <View style={styles.summaryContainer}>
+                    <View style={styles.summaryCard}>
+                        <View style={styles.summaryItem}>
+                            <Ionicons name="arrow-down-circle" size={20} color="#10B981" />
+                            <View>
+                                <Text style={styles.summaryLabel}>Ingresos</Text>
+                                <Text style={[styles.summaryValue, { color: '#10B981' }]}>
+                                    ${totals.income.toLocaleString('es-CO')}
+                                </Text>
+                            </View>
+                        </View>
+                        <View style={styles.summaryDivider} />
+                        <View style={styles.summaryItem}>
+                            <Ionicons name="arrow-up-circle" size={20} color="#EF4444" />
+                            <View>
+                                <Text style={styles.summaryLabel}>Gastos</Text>
+                                <Text style={[styles.summaryValue, { color: '#EF4444' }]}>
+                                    ${totals.expense.toLocaleString('es-CO')}
+                                </Text>
+                            </View>
+                        </View>
+                    </View>
+                </View>
+            )}
+
+            {/* FAB Button */}
+            <TouchableOpacity
+                style={styles.fabButton}
+                onPress={() => navigation.navigate('Agregar Transacción')}
+                activeOpacity={0.8}
+            >
+                <LinearGradient
+                    colors={['#10B981', '#059669']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.fabGradient}
+                >
+                    <Ionicons name="add" size={28} color="#FFFFFF" />
+                </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Lista */}
             {loading ? (
-                <ActivityIndicator size="large" color="#007AFF" style={{ marginTop: 40 }} />
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#007AFF" />
+                    <Text style={styles.loadingText}>Cargando transacciones...</Text>
+                </View>
             ) : (
                 <FlatList
                     data={transactions}
                     renderItem={renderItem}
                     keyExtractor={(item) => item.id}
-                    contentContainerStyle={styles.list}
+                    contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
                     ListEmptyComponent={() => (
                         <View style={styles.emptyContainer}>
-                            <Text style={styles.emptyText}>No hay transacciones registradas.</Text>
-                            <Text style={styles.emptyText}>¡Comienza agregando una!</Text>
+                            <Ionicons name="receipt-outline" size={80} color="#D1D5DB" />
+                            <Text style={styles.emptyTitle}>No hay transacciones</Text>
+                            <Text style={styles.emptySubtitle}>
+                                Comienza a registrar tus ingresos y gastos
+                            </Text>
+                            <TouchableOpacity
+                                style={styles.emptyButton}
+                                onPress={() => navigation.navigate('Agregar Transacción')}
+                            >
+                                <LinearGradient
+                                    colors={['#1E40AF', '#3B82F6']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={styles.emptyButtonGradient}
+                                >
+                                    <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" />
+                                    <Text style={styles.emptyButtonText}>Agregar transacción</Text>
+                                </LinearGradient>
+                            </TouchableOpacity>
                         </View>
                     )}
                 />
             )}
 
-            <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={closeMenu}>
-                <TouchableOpacity style={styles.modalOverlay} onPress={closeMenu}>
-                    <View style={styles.menuContainer}>
-                        <TouchableOpacity style={styles.menuOption} onPress={handleEdit}>
-                            <Text style={styles.menuOptionText}>Editar</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.menuOption} onPress={handleDelete}>
-                            <Text style={[styles.menuOptionText, styles.deleteText]}>Eliminar</Text>
+            {/* Modal */}
+            <Modal
+                visible={menuVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={closeMenu}
+            >
+                <TouchableOpacity
+                    style={styles.modalOverlay}
+                    activeOpacity={1}
+                    onPress={closeMenu}
+                >
+                    <View style={styles.modalContainer}>
+                        <View style={styles.modalHeader}>
+                            <View style={styles.modalIndicator} />
+                        </View>
+
+                        {selectedTransaction && (
+                            <View style={styles.transactionPreview}>
+                                <View
+                                    style={[
+                                        styles.previewIcon,
+                                        {
+                                            backgroundColor: selectedTransaction.type === 'Gasto'
+                                                ? '#FEF2F2'
+                                                : '#ECFDF5'
+                                        }
+                                    ]}
+                                >
+                                    <Text style={styles.previewEmoji}>
+                                        {selectedTransaction.type === 'Gasto' ? '💸' : '💰'}
+                                    </Text>
+                                </View>
+                                <View style={styles.previewInfo}>
+                                    <Text style={styles.previewTitle}>
+                                        {selectedTransaction.title}
+                                    </Text>
+                                    <Text
+                                        style={[
+                                            styles.previewAmount,
+                                            {
+                                                color: selectedTransaction.type === 'Gasto'
+                                                    ? '#EF4444'
+                                                    : '#10B981'
+                                            }
+                                        ]}
+                                    >
+                                        {selectedTransaction.type === 'Gasto' ? '-' : '+'}$
+                                        {Math.abs(selectedTransaction.amount).toLocaleString('es-CO')}
+                                    </Text>
+                                </View>
+                            </View>
+                        )}
+
+                        <View style={styles.menuOptions}>
+                            <TouchableOpacity style={styles.menuOption} onPress={handleEdit}>
+                                <View style={[styles.menuIconContainer, { backgroundColor: '#EEF2FF' }]}>
+                                    <Ionicons name="create-outline" size={24} color="#1E40AF" />
+                                </View>
+                                <View style={styles.menuOptionContent}>
+                                    <Text style={styles.menuOptionTitle}>Editar</Text>
+                                    <Text style={styles.menuOptionSubtitle}>Modificar detalles de transacción</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                            </TouchableOpacity>
+
+                            <View style={styles.menuDivider} />
+
+                            <TouchableOpacity style={styles.menuOption} onPress={handleDelete}>
+                                <View style={[styles.menuIconContainer, { backgroundColor: '#FEF2F2' }]}>
+                                    <Ionicons name="trash-outline" size={24} color="#EF4444" />
+                                </View>
+                                <View style={styles.menuOptionContent}>
+                                    <Text style={[styles.menuOptionTitle, { color: '#EF4444' }]}>
+                                        Eliminar
+                                    </Text>
+                                    <Text style={styles.menuOptionSubtitle}>Borrar transacción permanentemente</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <TouchableOpacity style={styles.cancelButton} onPress={closeMenu}>
+                            <Text style={styles.cancelButtonText}>Cancelar</Text>
                         </TouchableOpacity>
                     </View>
                 </TouchableOpacity>
@@ -126,136 +353,346 @@ export const TransactionsScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-    container: {
+    safeArea: {
         flex: 1,
-        backgroundColor: '#f8f9fa',
+        backgroundColor: '#F9FAFB',
     },
     header: {
-        // Ajustado para contener el título y el botón
-        flexDirection: 'row', // Permite elementos lado a lado
-        justifyContent: 'space-between', // Espacia el título y el botón
-        alignItems: 'center',
         paddingHorizontal: 20,
-        paddingVertical: 16,
-        backgroundColor: '#fff',
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee',
+        paddingVertical: 20,
+        shadowColor: '#1E40AF',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 5,
     },
-    title: {
-        fontSize: 20, // Ajustado para coincidir con CategoriesScreen
-        fontWeight: '600', // Ajustado para coincidir con CategoriesScreen
-        color: '#333',
+    headerContent: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
-    // 3. Estilo de botón de agregar copiado de CategoriesScreen
-    addButton: {
-        width: 40,
-        height: 40,
+    headerLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    headerTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+    },
+    headerStats: {
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
         borderRadius: 20,
-        backgroundColor: '#007AFF',
+    },
+    statsText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#FFFFFF',
+    },
+
+    // Summary
+    summaryContainer: {
+        paddingHorizontal: 20,
+        paddingTop: 16,
+    },
+    summaryCard: {
+        flexDirection: 'row',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    summaryItem: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    summaryDivider: {
+        width: 1,
+        backgroundColor: '#E5E7EB',
+        marginHorizontal: 16,
+    },
+    summaryLabel: {
+        fontSize: 12,
+        color: '#6B7280',
+        marginBottom: 2,
+    },
+    summaryValue: {
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+
+    // FAB
+    fabButton: {
+        position: 'absolute',
+        bottom: 24,
+        right: 24,
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        shadowColor: '#10B981',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 8,
+        elevation: 8,
+        zIndex: 100,
+    },
+    fabGradient: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    list: {
-        padding: 16,
+
+    // List
+    listContent: {
+        padding: 20,
+        paddingBottom: 100,
     },
-    transactionItem: {
+    transactionCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
+        backgroundColor: '#FFFFFF',
         padding: 16,
-        borderRadius: 12,
+        borderRadius: 16,
         marginBottom: 12,
         shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.05,
         shadowRadius: 4,
         elevation: 2,
     },
-    transactionImage: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        marginRight: 16,
-        backgroundColor: '#ccc', // Placeholder color
+    transactionIconContainer: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
     },
-    detailsContainer: {
+    transactionImage: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+    },
+    transactionEmoji: {
+        fontSize: 28,
+    },
+    transactionContent: {
         flex: 1,
-        marginRight: 10,
+    },
+    transactionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
     },
     transactionTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#333',
-    },
-    transactionCategory: {
-        fontSize: 12,
-        color: '#999',
-        marginTop: 2,
+        color: '#111827',
+        flex: 1,
+        marginRight: 8,
     },
     transactionAmount: {
-        fontSize: 16,
-        fontWeight: '700',
-        marginLeft: 'auto',
+        fontSize: 18,
+        fontWeight: 'bold',
     },
-    incomeText: {
-        color: '#4CAF50', // Verde para Ingreso
+    transactionFooter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
     },
-    expenseText: {
-        color: '#F44336', // Rojo para Gasto
+    categoryBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        flex: 1,
     },
-    menuButton: {
+    categoryDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+    },
+    categoryText: {
+        fontSize: 13,
+        color: '#6B7280',
+        flex: 1,
+    },
+    dateContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    dateText: {
+        fontSize: 12,
+        color: '#9CA3AF',
+    },
+    moreButton: {
         padding: 8,
         marginLeft: 4,
     },
-    // 4. Se elimina el estilo floatingButton
 
-    modalOverlay: {
+    // Loading & Empty
+    loadingContainer: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'flex-end',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 16,
     },
-    menuContainer: {
-        backgroundColor: '#fff',
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        paddingBottom: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.1,
+    loadingText: {
+        fontSize: 16,
+        color: '#6B7280',
+    },
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 40,
+        paddingTop: 60,
+    },
+    emptyTitle: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: '#374151',
+        marginTop: 24,
+        marginBottom: 8,
+    },
+    emptySubtitle: {
+        fontSize: 15,
+        color: '#9CA3AF',
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: 32,
+    },
+    emptyButton: {
+        borderRadius: 12,
+        overflow: 'hidden',
+        shadowColor: '#1E40AF',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
         shadowRadius: 8,
         elevation: 5,
     },
-    menuOption: {
-        paddingVertical: 16,
-        paddingHorizontal: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee',
-    },
-    menuOptionText: {
-        fontSize: 16,
-        textAlign: 'center',
-        color: '#333',
-    },
-    deleteText: {
-        color: '#FF3B30',
-        fontWeight: '600',
-    },
-    emptyContainer: {
-        paddingTop: 50,
-        alignItems: 'center',
-    },
-    emptyText: {
-        fontSize: 16,
-        color: '#999',
-    },
-    titleRow: {
+    emptyButtonGradient: {
         flexDirection: 'row',
         alignItems: 'center',
+        paddingVertical: 14,
+        paddingHorizontal: 24,
+        gap: 8,
+    },
+    emptyButtonText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+    },
+
+    // Modal
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContainer: {
+        backgroundColor: '#FFFFFF',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        paddingBottom: 20,
+    },
+    modalHeader: {
+        alignItems: 'center',
+        paddingTop: 12,
+        paddingBottom: 8,
+    },
+    modalIndicator: {
+        width: 40,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: '#E5E7EB',
+    },
+    transactionPreview: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 20,
+        gap: 16,
+    },
+    previewIcon: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    previewEmoji: {
+        fontSize: 32,
+    },
+    previewInfo: {
+        flex: 1,
+    },
+    previewTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#111827',
+        marginBottom: 4,
+    },
+    previewAmount: {
+        fontSize: 20,
+        fontWeight: 'bold',
+    },
+    menuOptions: {
+        paddingHorizontal: 20,
+    },
+    menuOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 16,
+        gap: 16,
+    },
+    menuIconContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    menuOptionContent: {
+        flex: 1,
+    },
+    menuOptionTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#111827',
         marginBottom: 2,
     },
-    categoryColorCircle: {
-        width: 20,
-        height: 20,
-        borderRadius: 10, // Para hacerlo circular
-        marginLeft: 8, // Espacio entre el título y el círculo
+    menuOptionSubtitle: {
+        fontSize: 13,
+        color: '#6B7280',
+    },
+    menuDivider: {
+        height: 1,
+        backgroundColor: '#F3F4F6',
+        marginVertical: 4,
+    },
+    cancelButton: {
+        marginHorizontal: 20,
+        marginTop: 16,
+        padding: 16,
+        backgroundColor: '#F3F4F6',
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    cancelButtonText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#374151',
     },
 });

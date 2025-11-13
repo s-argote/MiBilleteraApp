@@ -8,7 +8,11 @@ const Stack = createNativeStackNavigator();
 export const DashboardStack = () => {
     return (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="Resumen Financiero" component={HomeScreen} />
+            <Stack.Screen
+                name="Resumen Financiero"
+                component={HomeScreen}
+                options={{ title: "Resumen financiero" }}
+            />
 
             {/* Nueva pantalla */}
             <Stack.Screen

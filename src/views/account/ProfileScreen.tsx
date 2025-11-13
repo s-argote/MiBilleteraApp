@@ -50,7 +50,7 @@ export const ProfileScreen = ({ navigation }: any) => {
    };
 
    return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView edges={["left", "right", "bottom", "top"]} style={styles.safeArea}>
          <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             style={styles.container}
@@ -59,23 +59,33 @@ export const ProfileScreen = ({ navigation }: any) => {
                contentContainerStyle={styles.scrollContainer}
                showsVerticalScrollIndicator={false}
             >
-               {/* Header con Avatar */}
+               {/* Header con gradiente y botón de volver */}
                <LinearGradient
-                  colors={['#1E40AF', '#3B82F6']}
+                  colors={["#1E40AF", "#3B82F6"]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.headerGradient}
                >
+                  {/* Botón de volver */}
+                  <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+                     <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+                  </TouchableOpacity>
+
+                  {/* Contenido del Header */}
                   <View style={styles.avatarContainer}>
                      <View style={styles.avatarCircle}>
                         <Text style={styles.avatarText}>
-                           {name?.[0]?.toUpperCase() || profile?.email?.[0]?.toUpperCase() || 'U'}
+                           {name?.[0]?.toUpperCase() ||
+                              profile?.email?.[0]?.toUpperCase() ||
+                              "U"}
                         </Text>
                      </View>
+
                      <TouchableOpacity style={styles.editAvatarButton}>
                         <Ionicons name="camera" size={16} color="#FFFFFF" />
                      </TouchableOpacity>
                   </View>
+
                   <Text style={styles.headerTitle}>{name || "Usuario"}</Text>
                   <Text style={styles.headerEmail}>{profile?.email || ""}</Text>
                </LinearGradient>
@@ -253,6 +263,17 @@ const styles = StyleSheet.create({
    avatarContainer: {
       position: 'relative',
       marginBottom: 16,
+   },
+   backButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: "rgba(255,255,255,0.2)",
+      position: "absolute",
+      top: 50,
+      left: 20,
+      zIndex: 2,
+      padding: 4,
    },
    avatarCircle: {
       width: 100,

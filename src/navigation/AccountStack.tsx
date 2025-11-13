@@ -14,7 +14,7 @@ export const AccountStack = () => {
             <Stack.Screen name="Mi Cuenta" component={AccountScreen} />
             <Stack.Screen name="Perfil" component={ProfileScreen}
                 options={{
-                    headerShown: true,
+                    headerShown: false,
                     title: 'Mi Cuenta',
                     headerBackTitle: 'Volver',
                 }} />
@@ -35,7 +35,7 @@ export const AccountStack = () => {
                 }} />
             <Stack.Screen name="Historial" component={HistoryScreen}
                 options={{
-                    headerShown: true,
+                    headerShown: false,
                     title: 'Historial',
                     headerBackTitle: 'Volver',
                 }} />

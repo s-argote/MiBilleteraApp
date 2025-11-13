@@ -10,12 +10,20 @@ export const useCategoryViewModel = () => {
     const [categories, setCategories] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Cargar categorías
+    // Cargar categorías + contar transacciones
     const loadCategories = async () => {
         setLoading(true);
         try {
             const data = await CategoryService.getCategories();
-            setCategories(data);
+            const transactions = await TransactionService.getTransactions(); // obtiene todas las transacciones
+
+            // Añadir la cantidad de transacciones por categoría
+            const categoriesWithCount = data.map(cat => {
+                const count = transactions.filter(t => t.categoryId === cat.id).length;
+                return { ...cat, transactionsCount: count };
+            });
+
+            setCategories(categoriesWithCount);
         } catch (error) {
             console.error("Error al cargar categorías:", error);
         } finally {
@@ -32,7 +40,6 @@ export const useCategoryViewModel = () => {
     // Agregar categoría
     const addCategory = async (name: string, color: string) => {
         const cleanName = name.trim().replace(/\s+/g, " ");
-
         if (categoryExists(cleanName)) {
             throw new Error("Ya existe una categoría con ese nombre.");
         }
@@ -49,13 +56,8 @@ export const useCategoryViewModel = () => {
     // Eliminar categoría + transacciones asociadas
     const deleteCategory = async (id: string) => {
         try {
-            // 1. Eliminar transacciones que usen esta categoría
             await TransactionService.deleteTransactionsByCategory(id);
-
-            // 2. Eliminar la categoría
             await CategoryService.deleteCategory(id);
-
-            // 3. Recargar categorías
             await loadCategories();
         } catch (error) {
             console.error("Error al eliminar categoría:", error);
@@ -63,17 +65,15 @@ export const useCategoryViewModel = () => {
         }
     };
 
-    // Actualizar categoría + transacciones
+    // Actualizar categoría + transacciones relacionadas
     const updateCategory = async (
         id: string,
         data: { name?: string; color?: string }
     ) => {
         const updatedData: { name?: string; color?: string } = {};
 
-        // Validar nombre si se va a cambiar
         if (data.name != null) {
             const newCleanName = normalize(data.name);
-
             const exists = categories.some(
                 cat => cat.id !== id && normalize(cat.name) === newCleanName
             );
@@ -85,19 +85,13 @@ export const useCategoryViewModel = () => {
             updatedData.name = data.name.trim().replace(/\s+/g, " ");
         }
 
-        // Validar color
         if (data.color) {
             updatedData.color = data.color;
         }
 
         try {
-            // 1. Actualizar categoría
             await CategoryService.updateCategory(id, updatedData);
-
-            // 2. Actualizar transacciones relacionadas
             await TransactionService.updateTransactionsCategoryColor(id, updatedData);
-
-            // 3. Recargar categorías
             await loadCategories();
         } catch (error) {
             console.error("Error al actualizar categoría:", error);

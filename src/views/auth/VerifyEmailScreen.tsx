@@ -3,22 +3,21 @@ import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator, Ale
 import { SafeAreaView } from "react-native-safe-area-context";
 import { auth } from "../../services/firebase";
 import { sendEmailVerification } from "firebase/auth";
+import { useAuthContext } from "../../context/AuthContext";
 
 export const VerifyEmailScreen = ({ navigation }: any) => {
     const [loading, setLoading] = useState(false);
-
+    const { refreshUser } = useAuthContext();
     const user = auth.currentUser;
 
     const handleResend = async () => {
         if (!user) return;
-
         try {
             setLoading(true);
             await sendEmailVerification(user);
-            Alert.alert("Correo enviado", "Revisa nuevamente tu bandeja de entrada.");
+            Alert.alert("Correo reenviado", "Revisa nuevamente tu bandeja de entrada.");
         } catch (error) {
             Alert.alert("Error", "No se pudo reenviar el correo.");
-            console.log(error);
         } finally {
             setLoading(false);
         }
@@ -26,20 +25,18 @@ export const VerifyEmailScreen = ({ navigation }: any) => {
 
     const handleCheckVerification = async () => {
         if (!user) return;
-
         try {
             setLoading(true);
-            await user.reload();
+            await refreshUser();
 
-            if (user.emailVerified) {
+            if (auth.currentUser?.emailVerified) {
                 Alert.alert("¡Correo verificado!", "Ya puedes iniciar sesión.");
                 navigation.replace("Iniciar Sesión");
             } else {
-                Alert.alert("Aún no verificado", "Por favor revisa tu correo.");
+                Alert.alert("Aún no verificado", "Por favor revisa tu correo nuevamente.");
             }
         } catch (error) {
-            console.log(error);
-            Alert.alert("Error", "No se pudo comprobar el estado.");
+            Alert.alert("Error", "No se pudo comprobar el estado del correo.");
         } finally {
             setLoading(false);
         }
@@ -54,18 +51,13 @@ export const VerifyEmailScreen = ({ navigation }: any) => {
 
             <View style={styles.card}>
                 <Text style={styles.title}>Verifica tu correo</Text>
-
-                <Text style={styles.message}>
-                    Te enviamos un mensaje de verificación a:
-                </Text>
-
+                <Text style={styles.message}>Te enviamos un mensaje de verificación a:</Text>
                 <Text style={styles.email}>{user?.email}</Text>
 
                 <Text style={styles.message2}>
-                    Debes verificar tu correo para continuar usando la aplicación.
+                    Una vez lo confirmes, presiona el botón “Ya verifiqué” para continuar.
                 </Text>
 
-                {/* BOTÓN REENVIAR */}
                 <TouchableOpacity
                     style={[styles.button, styles.secondaryButton]}
                     onPress={handleResend}
@@ -80,9 +72,8 @@ export const VerifyEmailScreen = ({ navigation }: any) => {
                     )}
                 </TouchableOpacity>
 
-                {/* BOTÓN COMPROBAR */}
                 <TouchableOpacity
-                    style={styles.button}
+                    style={[styles.button, loading && { opacity: 0.7 }]}
                     onPress={handleCheckVerification}
                     disabled={loading}
                 >
@@ -98,39 +89,27 @@ export const VerifyEmailScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#f8f9fa",
-        alignItems: "center",
-    },
+    container: { flex: 1, backgroundColor: "#f8f9fa", alignItems: "center" },
     logo: {
         width: 120,
         height: 120,
-        marginTop: 50,
-        marginBottom: 20,
+        marginTop: 60,
+        marginBottom: 30,
+        resizeMode: "contain",
     },
     card: {
         width: "85%",
         backgroundColor: "#fff",
-        borderRadius: 16,
-        padding: 25,
+        borderRadius: 18,
+        padding: 28,
         alignItems: "center",
         shadowColor: "#000",
         shadowOpacity: 0.08,
-        shadowRadius: 6,
-        elevation: 3,
+        shadowRadius: 8,
+        elevation: 4,
     },
-    title: {
-        fontSize: 22,
-        fontWeight: "700",
-        marginBottom: 10,
-        color: "#333",
-    },
-    message: {
-        fontSize: 16,
-        textAlign: "center",
-        color: "#555",
-    },
+    title: { fontSize: 22, fontWeight: "700", marginBottom: 10, color: "#333" },
+    message: { fontSize: 16, textAlign: "center", color: "#555" },
     email: {
         fontSize: 16,
         fontWeight: "600",
@@ -157,14 +136,6 @@ const styles = StyleSheet.create({
         borderWidth: 1.5,
         borderColor: "#007AFF",
     },
-    buttonText: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#fff",
-    },
-    link: {
-        marginTop: 14,
-        color: "#007AFF",
-        fontWeight: "600",
-    },
+    buttonText: { fontSize: 16, fontWeight: "600", color: "#fff" },
 });
+

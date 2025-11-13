@@ -10,7 +10,7 @@ export const CategoriesStack = () => {
     return (
         <Stack.Navigator>
             <Stack.Screen
-                name="ListaCategorías"
+                name="Lista Categorías"
                 component={CategoriesScreen}
                 options={{ headerShown: false }}
             />
@@ -18,7 +18,7 @@ export const CategoriesStack = () => {
                 name="Nueva Categoría"
                 component={AddCategoriesScreen}
                 options={{
-                    headerShown: true,
+                    headerShown: false,
                     title: 'Nueva Categoría',
                     headerBackTitle: 'Volver',
                 }}
@@ -26,7 +26,11 @@ export const CategoriesStack = () => {
             <Stack.Screen
                 name="Editar Categoría"
                 component={EditCategoriesScreen}
-                options={{ title: 'Editar Categoría' }}
+                options={{
+                    headerShown: false,
+                    title: 'Editar Categoría',
+                    headerBackTitle: 'Volver',
+                }}
             />
         </Stack.Navigator>
     );
