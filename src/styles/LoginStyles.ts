@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-
+ 
 export const LoginStyles = StyleSheet.create({
     container: {
         flex: 1,
@@ -90,5 +90,13 @@ export const LoginStyles = StyleSheet.create({
     },
     eyeButton: {
         paddingHorizontal: 10,
-    }
+    },
+    resetPasswordLink: {
+        color: "#007AFF",
+        marginTop: 8,
+        marginBottom: 15,
+        textAlign: "center",
+        fontSize: 14,
+        fontWeight: "500",
+    },
 });
