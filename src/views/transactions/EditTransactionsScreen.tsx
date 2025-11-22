@@ -1,42 +1,122 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Modal } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Modal, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useTransactionViewModel } from '../../viewmodels/TransactionViewModel';
 import { useCategoryViewModel } from '../../viewmodels/CategoryViewModel';
+import * as ImagePicker from "expo-image-picker";
 import { Transaction } from '../../models/Transaction';
 
-export const EditTransactionsScreen = ({ route, navigation }: any) => {
-  const { transaction } = route.params;
-  const { updateTransaction } = useTransactionViewModel();
-  const { categories, loading: categoriesLoading } = useCategoryViewModel();
+export const EditTransactionsScreen = ({ navigation, route }: any) => {
 
-  const initialAmount = Math.abs(transaction.amount).toString();
+  const { updateTransaction, uploadImage, deleteImageFromStorage } = useTransactionViewModel();
+  const { categories } = useCategoryViewModel();
+
+  const transaction: Transaction = route.params.transaction;
+
   const [type, setType] = useState<'Ingreso' | 'Gasto'>(transaction.type);
   const [category, setCategory] = useState(transaction.category);
   const [title, setTitle] = useState(transaction.title);
-  const [amount, setAmount] = useState(initialAmount);
-  const [date, setDate] = useState(new Date(transaction.date));
+  const [amount, setAmount] = useState(Math.abs(transaction.amount).toString());
+  const parseLocalDate = (str: string) => {
+    const [y, m, d] = str.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  };
+  const [date, setDate] = useState(parseLocalDate(transaction.date));
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [imageUri, setImageUri] = useState<string | null>(transaction.image || null);
 
-  const selectedCategoryObj = categories.find((c) => c.name === category);
+  const [imageUri, setImageUri] = useState<string | null>(transaction.image || null);
+  const [newImageUri, setNewImageUri] = useState<string | null>(null); // nueva imagen a subir
+
+  const formatLocalDate = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
     setShowDatePicker(false);
     if (selectedDate) setDate(selectedDate);
   };
 
+  /* =============================
+      MANEJO DE IMAGEN
+  ============================== */
+
   const handleImageAttach = () => {
     Alert.alert(
-      'Adjuntar imagen',
-      'Funcionalidad de cámara/galería próximamente',
-      [{ text: 'OK' }]
+      "Cambiar imagen",
+      "¿De dónde deseas obtener la nueva imagen?",
+      [
+        { text: "Cámara", onPress: pickFromCamera },
+        { text: "Galería", onPress: pickFromGallery },
+        { text: "Cancelar", style: "cancel" }
+      ]
     );
   };
+
+  const pickFromCamera = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permiso requerido", "Debes permitir acceso a la cámara.");
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      setNewImageUri(result.assets[0].uri);
+    }
+  };
+
+  const pickFromGallery = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permiso requerido", "Debes permitir acceso a la galería.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      setNewImageUri(result.assets[0].uri);
+    }
+  };
+
+  const handleDeleteImage = () => {
+    Alert.alert(
+      "Eliminar imagen",
+      "¿Seguro que deseas quitar la imagen?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: async () => {
+            if (imageUri) {
+              await deleteImageFromStorage(imageUri);
+            }
+            setImageUri(null);
+            setNewImageUri(null);
+          }
+        }
+      ]
+    );
+  };
+
+  /* =============================
+      GUARDAR CAMBIOS
+  ============================== */
 
   const handleSave = async () => {
     const cleanAmount = amount.replace(',', '.');
@@ -46,35 +126,53 @@ export const EditTransactionsScreen = ({ route, navigation }: any) => {
       Alert.alert('Campo requerido', 'Por favor ingresa un título.');
       return;
     }
-    if (!amount.trim() || isNaN(parsedAmount) || parsedAmount <= 0) {
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
       Alert.alert('Monto inválido', 'Ingresa un monto válido mayor a 0.');
       return;
     }
 
     try {
-      await updateTransaction(transaction.id, {
+      let finalImageUrl = imageUri;
+
+      // Si hay una nueva imagen, la subimos
+      if (newImageUri) {
+        if (imageUri) {
+          await deleteImageFromStorage(imageUri);
+        }
+        finalImageUrl = await uploadImage(newImageUri);
+      }
+
+      const updated: Partial<Transaction> = {
         title: title.trim(),
         amount: type === 'Gasto' ? -parsedAmount : parsedAmount,
         type,
-        date: date.toISOString().split('T')[0],
+        date: formatLocalDate(date),
         category,
         categoryId: categories.find((c) => c.name === category)?.id || null,
-        image: imageUri || '',
-        color: selectedCategoryObj?.color || '#9CA3AF',
-      } as Transaction);
+        image: finalImageUrl,
+        color: categories.find((c) => c.name === category)?.color || '#9CA3AF',
+      };
 
-      Alert.alert('Éxito', 'Transacción actualizada correctamente.', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      await updateTransaction(transaction.id, updated);
+
+      Alert.alert(
+        "¡Actualizado!",
+        "La transacción se modificó correctamente.",
+        [{ text: "OK", onPress: () => navigation.goBack() }]
+      );
+
     } catch (error) {
-      console.error('Error al actualizar:', error);
-      Alert.alert('Error', 'No se pudo actualizar la transacción.');
+      console.error(error);
+      Alert.alert("Error", "No se pudo actualizar la transacción.");
     }
   };
 
+  const selectedCategoryObj = categories.find((c) => c.name === category);
+
   return (
-    <SafeAreaView edges={['left', 'right', 'bottom', 'top']} style={styles.safeArea}>
-      {/* Header */}
+    <SafeAreaView style={styles.safeArea}>
+
+      {/* HEADER */}
       <LinearGradient
         colors={['#1E40AF', '#3B82F6']}
         start={{ x: 0, y: 0 }}
@@ -84,32 +182,33 @@ export const EditTransactionsScreen = ({ route, navigation }: any) => {
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
         </TouchableOpacity>
+
         <Text style={styles.headerTitle}>Editar Transacción</Text>
-        <View style={styles.headerRight} />
+
+        <View style={{ width: 40 }} />
       </LinearGradient>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+
         {/* Tipo */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Tipo de transacción</Text>
+
           <View style={styles.typeSelector}>
             {['Ingreso', 'Gasto'].map((t) => (
               <TouchableOpacity
                 key={t}
                 style={[styles.typeButton, type === t && styles.typeButtonActive]}
                 onPress={() => setType(t as 'Ingreso' | 'Gasto')}
-                activeOpacity={0.7}
               >
                 <LinearGradient
                   colors={
                     type === t
-                      ? t === 'Ingreso'
+                      ? (t === 'Ingreso'
                         ? ['#10B981', '#059669']
-                        : ['#EF4444', '#DC2626']
+                        : ['#EF4444', '#DC2626'])
                       : ['#F3F4F6', '#F3F4F6']
                   }
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
                   style={styles.typeButtonGradient}
                 >
                   <Ionicons
@@ -117,12 +216,8 @@ export const EditTransactionsScreen = ({ route, navigation }: any) => {
                     size={24}
                     color={type === t ? '#FFFFFF' : '#6B7280'}
                   />
-                  <Text
-                    style={[
-                      styles.typeButtonText,
-                      type === t && styles.typeButtonTextActive,
-                    ]}
-                  >
+
+                  <Text style={[styles.typeButtonText, type === t && styles.typeButtonTextActive]}>
                     {t}
                   </Text>
                 </LinearGradient>
@@ -134,15 +229,14 @@ export const EditTransactionsScreen = ({ route, navigation }: any) => {
         {/* Título */}
         <View style={styles.section}>
           <Text style={styles.label}>Título</Text>
+
           <View style={styles.inputContainer}>
             <Ionicons name="text-outline" size={20} color="#6B7280" />
             <TextInput
               style={styles.input}
-              placeholder="Ej: Pago luz, Compra café"
-              placeholderTextColor="#9CA3AF"
               value={title}
               onChangeText={setTitle}
-              maxLength={50}
+              placeholder="Ej: Compra de café"
             />
           </View>
         </View>
@@ -150,15 +244,15 @@ export const EditTransactionsScreen = ({ route, navigation }: any) => {
         {/* Monto */}
         <View style={styles.section}>
           <Text style={styles.label}>Monto</Text>
+
           <View style={styles.inputContainer}>
             <Text style={styles.currencySymbol}>$</Text>
+
             <TextInput
               style={styles.input}
-              placeholder="0"
-              placeholderTextColor="#9CA3AF"
               value={amount}
-              onChangeText={setAmount}
               keyboardType="numeric"
+              onChangeText={setAmount}
             />
           </View>
         </View>
@@ -166,21 +260,16 @@ export const EditTransactionsScreen = ({ route, navigation }: any) => {
         {/* Categoría */}
         <View style={styles.section}>
           <Text style={styles.label}>Categoría</Text>
-          <TouchableOpacity
-            style={styles.categoryButton}
-            onPress={() => setShowCategoryModal(true)}
-          >
+
+          <TouchableOpacity style={styles.categoryButton} onPress={() => setShowCategoryModal(true)}>
             {selectedCategoryObj && (
-              <View
-                style={[
-                  styles.categoryDot,
-                  { backgroundColor: selectedCategoryObj.color || '#9CA3AF' },
-                ]}
-              />
+              <View style={[styles.categoryDot, { backgroundColor: selectedCategoryObj.color }]} />
             )}
+
             <Text style={styles.categoryButtonText}>
-              {selectedCategoryObj?.icon || '📁'} {category || 'Seleccionar'}
+              {selectedCategoryObj?.icon} {category}
             </Text>
+
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </TouchableOpacity>
         </View>
@@ -188,59 +277,66 @@ export const EditTransactionsScreen = ({ route, navigation }: any) => {
         {/* Fecha */}
         <View style={styles.section}>
           <Text style={styles.label}>Fecha</Text>
-          <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => setShowDatePicker(true)}
-          >
+
+          <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
             <Ionicons name="calendar" size={20} color="#1E40AF" />
+
             <Text style={styles.dateButtonText}>
               {date.toLocaleDateString('es-ES', {
-                weekday: 'long',
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric"
               })}
             </Text>
           </TouchableOpacity>
         </View>
 
+        {/* DATE PICKER */}
         {showDatePicker && (
-          <DateTimePicker
-            value={date}
-            mode="date"
-            display="default"
-            onChange={handleDateChange}
-          />
+          <DateTimePicker value={date} mode="date" display="default" onChange={handleDateChange} />
         )}
 
-        {/* Comprobante */}
+        {/* IMAGEN */}
         <View style={styles.section}>
-          <Text style={styles.label}>Comprobante (opcional)</Text>
-          <TouchableOpacity
-            style={styles.imageButton}
-            onPress={handleImageAttach}
-          >
+          <Text style={styles.label}>Comprobante</Text>
+
+          <TouchableOpacity style={styles.imageButton} onPress={handleImageAttach}>
             <Ionicons name="camera" size={20} color="#3B82F6" />
             <Text style={styles.imageButtonText}>
-              {imageUri ? 'Imagen adjunta' : 'Adjuntar imagen'}
+              {newImageUri ? "Nueva imagen lista" : imageUri ? "Cambiar imagen" : "Adjuntar imagen"}
             </Text>
           </TouchableOpacity>
+
+          {(newImageUri || imageUri) && (
+            <View style={{ alignItems: "center", marginTop: 12 }}>
+              <Image
+                source={{ uri: newImageUri || imageUri! }}
+                style={{ width: 170, height: 170, borderRadius: 16 }}
+              />
+
+              <TouchableOpacity onPress={handleDeleteImage}>
+                <Text style={{ marginTop: 8, color: "#DC2626", fontWeight: "600" }}>
+                  Quitar imagen
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
-        {/* Botón guardar */}
+        {/* GUARDAR */}
         <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
           <LinearGradient
             colors={['#1E40AF', '#3B82F6']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
             style={styles.saveButtonGradient}
           >
             <Text style={styles.saveButtonText}>Guardar Cambios</Text>
           </LinearGradient>
         </TouchableOpacity>
+
       </ScrollView>
 
-      {/* Modal de Categorías */}
+      {/* MODAL CATEGORÍAS */}
       <Modal
         visible={showCategoryModal}
         transparent
@@ -259,50 +355,47 @@ export const EditTransactionsScreen = ({ route, navigation }: any) => {
             </View>
 
             <ScrollView style={styles.categoriesList}>
-              {categoriesLoading ? (
-                <Text style={styles.loadingText}>Cargando categorías...</Text>
-              ) : (
-                categories.map((cat) => (
-                  <TouchableOpacity
-                    key={cat.id}
-                    style={[
-                      styles.categoryItem,
-                      category === cat.name && styles.categoryItemSelected,
-                    ]}
-                    onPress={() => {
-                      setCategory(cat.name);
-                      setShowCategoryModal(false);
-                    }}
-                  >
-                    <View style={styles.categoryItemLeft}>
-                      <View
-                        style={[
-                          styles.categoryItemDot,
-                          { backgroundColor: cat.color || '#9CA3AF' },
-                        ]}
-                      />
-                      <Text style={styles.categoryItemText}>
-                        {cat.icon || '📁'} {cat.name}
-                      </Text>
-                    </View>
-                    {category === cat.name && (
-                      <Ionicons name="checkmark" size={24} color="#1E40AF" />
-                    )}
-                  </TouchableOpacity>
-                ))
-              )}
+              {categories.map((cat) => (
+                <TouchableOpacity
+                  key={cat.id}
+                  style={[
+                    styles.categoryItem,
+                    category === cat.name && styles.categoryItemSelected
+                  ]}
+                  onPress={() => {
+                    setCategory(cat.name);
+                    setShowCategoryModal(false);
+                  }}
+                >
+                  <View style={styles.categoryItemLeft}>
+                    <View
+                      style={[styles.categoryItemDot, { backgroundColor: cat.color }]}
+                    />
+                    <Text style={styles.categoryItemText}>{cat.icon} {cat.name}</Text>
+                  </View>
+
+                  {category === cat.name && (
+                    <Ionicons name="checkmark" size={24} color="#1E40AF" />
+                  )}
+                </TouchableOpacity>
+              ))}
             </ScrollView>
+
           </View>
         </TouchableOpacity>
       </Modal>
+
     </SafeAreaView>
   );
 };
 
+
+/* ======================= ESTILOS ======================= */
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F9FAFB'
   },
   header: {
     flexDirection: 'row',
@@ -310,123 +403,66 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    shadowColor: '#1E40AF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 40, height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  headerRight: {
-    width: 40,
+    color: '#fff',
+    fontWeight: 'bold'
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 50
   },
-  section: {
-    marginBottom: 24,
-  },
+
+  section: { marginBottom: 24 },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#111827',
     marginBottom: 12,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
 
-  // Type Selector
-  typeSelector: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  typeButton: {
-    flex: 1,
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  typeButtonActive: {
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-  },
+  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
+
+  /* TYPE BUTTONS */
+  typeSelector: { flexDirection: 'row', gap: 12 },
+  typeButton: { flex: 1, borderRadius: 12, overflow: "hidden" },
+  typeButtonActive: {},
   typeButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
     paddingVertical: 16,
+    gap: 8
   },
-  typeButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  typeButtonTextActive: {
-    color: '#FFFFFF',
-  },
+  typeButtonText: { fontSize: 16, color: '#6B7280', fontWeight: '600' },
+  typeButtonTextActive: { color: '#FFF' },
 
-  // Inputs
+  /* INPUTS */
   inputContainer: {
+    backgroundColor: '#FFF',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
     paddingHorizontal: 16,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
   },
-  input: {
-    flex: 1,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#111827',
-    marginLeft: 12,
-  },
-  currencySymbol: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1E40AF',
-  },
-  amountPreview: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1E40AF',
-    textAlign: 'right',
-    marginTop: 8,
-  },
+  input: { flex: 1, paddingVertical: 14, marginLeft: 12, fontSize: 16 },
+  currencySymbol: { fontSize: 20, fontWeight: 'bold', color: '#1E40AF' },
 
-  // Category Button
+  /* CATEGORY */
   categoryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFF',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
@@ -436,83 +472,56 @@ const styles = StyleSheet.create({
   categoryDot: {
     width: 12,
     height: 12,
-    borderRadius: 6,
+    borderRadius: 6
   },
-  categoryButtonText: {
-    flex: 1,
-    fontSize: 16,
-    color: '#111827',
-  },
+  categoryButtonText: { flex: 1, fontSize: 16 },
 
-  // Date Button
+  /* DATE */
   dateButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
     padding: 16,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    gap: 12,
+    backgroundColor: '#FFF',
+    gap: 12
   },
-  dateButtonText: {
-    flex: 1,
-    fontSize: 15,
-    color: '#111827',
-    textTransform: 'capitalize',
-  },
+  dateButtonText: { fontSize: 16, color: '#111827', textTransform: "capitalize" },
 
-  // Image Button
+  /* IMAGE */
   imageButton: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
     padding: 16,
     borderWidth: 2,
     borderColor: '#3B82F6',
     borderStyle: 'dashed',
-    gap: 12,
-  },
-  imageButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#3B82F6',
-  },
-
-  // Save Button
-  saveButton: {
-    marginTop: 16,
     borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#1E40AF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    backgroundColor: '#FFF',
+    gap: 12
+  },
+  imageButtonText: { fontSize: 16, fontWeight: '600', color: '#3B82F6' },
+
+  /* SAVE BUTTON */
+  saveButton: {
+    marginTop: 20,
+    borderRadius: 12,
+    overflow: 'hidden'
   },
   saveButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     paddingVertical: 16,
-    gap: 8,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
-  saveButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
+  saveButtonText: { color: '#FFF', fontSize: 18, fontWeight: 'bold' },
 
-  // Modal
+  /* MODAL */
   modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end'
   },
   modalContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '70%',
@@ -531,43 +540,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
     marginBottom: 16,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  categoriesList: {
-    maxHeight: 400,
-  },
+  modalTitle: { fontSize: 18, fontWeight: 'bold' },
+
+  categoriesList: { maxHeight: 300 },
   categoryItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  categoryItemSelected: {
-    backgroundColor: '#EEF2FF',
-  },
-  categoryItemLeft: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6'
   },
-  categoryItemDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  categoryItemText: {
-    fontSize: 16,
-    color: '#111827',
-  },
-  loadingText: {
-    textAlign: 'center',
-    padding: 24,
-    color: '#6B7280',
-  },
+  categoryItemSelected: { backgroundColor: '#EEF2FF' },
+  categoryItemLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  categoryItemDot: { width: 12, height: 12, borderRadius: 6 },
+  categoryItemText: { fontSize: 16 }
+
 });
+

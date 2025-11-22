@@ -6,7 +6,7 @@ export interface Transaction {
     date: string; // Formato: "YYYY-MM-DD"
     category: string;
     categoryId?: string;
-    image?: string; // URL opcional de la imagen
+    image?: string | null; // URL opcional de la imagen
     userId: string; // Para asociar la transacción con el usuario
     color?: string; // Color asociado a la categoría
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Platform, Modal } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Modal, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -8,9 +8,11 @@ import { useTransactionViewModel } from '../../viewmodels/TransactionViewModel';
 import { useCategoryViewModel } from '../../viewmodels/CategoryViewModel';
 import { getAuth } from 'firebase/auth';
 import { Transaction } from '../../models/Transaction';
+import * as ImagePicker from "expo-image-picker";
 
 export const AddTransactionsScreen = ({ navigation }: any) => {
-  const { addTransaction } = useTransactionViewModel();
+
+  const { addTransaction, uploadImage } = useTransactionViewModel();
   const { categories, loading: categoriesLoading } = useCategoryViewModel();
 
   const [type, setType] = useState<'Ingreso' | 'Gasto'>('Gasto');
@@ -22,6 +24,15 @@ export const AddTransactionsScreen = ({ navigation }: any) => {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
 
+  const formatLocalDate = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+
+  // Seleccionar categoría por defecto
   useEffect(() => {
     if (categories.length > 0 && !category) {
       setCategory(categories[0].name);
@@ -30,17 +41,54 @@ export const AddTransactionsScreen = ({ navigation }: any) => {
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
     setShowDatePicker(false);
-    if (selectedDate) {
-      setDate(selectedDate);
+    if (selectedDate) setDate(selectedDate);
+  };
+
+  // Abrir opciones para escoger imagen
+  const handleImageAttach = () => {
+    Alert.alert(
+      "Adjuntar imagen",
+      "¿De dónde deseas obtener la imagen?",
+      [
+        { text: "Cámara", onPress: pickFromCamera },
+        { text: "Galería", onPress: pickFromGallery },
+        { text: "Cancelar", style: "cancel" }
+      ]
+    );
+  };
+
+  const pickFromCamera = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permiso requerido", "Debes permitir acceso a la cámara.");
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
     }
   };
 
-  const handleImageAttach = () => {
-    Alert.alert(
-      'Adjuntar imagen',
-      'Funcionalidad de cámara/galería próximamente',
-      [{ text: 'OK' }]
-    );
+  const pickFromGallery = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permiso requerido", "Debes permitir acceso a la galería.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
+    }
   };
 
   const handleSave = async () => {
@@ -68,23 +116,32 @@ export const AddTransactionsScreen = ({ navigation }: any) => {
         return;
       }
 
+      //  Subir imagen a Firebase Storage antes de guardar
+      let uploadedUrl = "";
+      if (imageUri) {
+        uploadedUrl = await uploadImage(imageUri);
+      }
+
       const newTransaction: Omit<Transaction, 'id'> = {
         title: title.trim(),
         amount: type === 'Gasto' ? -parsedAmount : parsedAmount,
         type,
-        date: date.toISOString().split('T')[0],
+        date: formatLocalDate(date),
         category,
         categoryId: categories.find((c) => c.name === category)?.id || null,
-        image: imageUri || '',
+        image: uploadedUrl || "",
         userId: user.uid,
         color: categories.find((c) => c.name === category)?.color || '#9CA3AF',
       };
 
       await addTransaction(newTransaction);
 
-      Alert.alert('¡Guardado!', `${type} registrado exitosamente.`, [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      Alert.alert(
+        '¡Guardado!',
+        `${type} registrado exitosamente.`,
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
+
     } catch (error) {
       console.error('Error:', error);
       Alert.alert('Error', 'No se pudo guardar. Inténtalo de nuevo.');
@@ -95,6 +152,7 @@ export const AddTransactionsScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView edges={['left', 'right', 'bottom', 'top']} style={styles.safeArea}>
+
       {/* Header */}
       <LinearGradient
         colors={['#1E40AF', '#3B82F6']}
@@ -102,91 +160,52 @@ export const AddTransactionsScreen = ({ navigation }: any) => {
         end={{ x: 1, y: 1 }}
         style={styles.header}
       >
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
         </TouchableOpacity>
+
         <Text style={styles.headerTitle}>Nueva Transacción</Text>
         <View style={styles.headerRight} />
       </LinearGradient>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Selector de tipo */}
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+
+        {/* Tipo */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Tipo de transacción</Text>
           <View style={styles.typeSelector}>
-            <TouchableOpacity
-              style={[
-                styles.typeButton,
-                type === 'Ingreso' && styles.typeButtonActive,
-              ]}
-              onPress={() => setType('Ingreso')}
-              activeOpacity={0.7}
-            >
-              <LinearGradient
-                colors={
-                  type === 'Ingreso'
-                    ? ['#10B981', '#059669']
-                    : ['#F3F4F6', '#F3F4F6']
-                }
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.typeButtonGradient}
+            {['Ingreso', 'Gasto'].map((t) => (
+              <TouchableOpacity
+                key={t}
+                style={[styles.typeButton, type === t && styles.typeButtonActive]}
+                onPress={() => setType(t as 'Ingreso' | 'Gasto')}
+                activeOpacity={0.7}
               >
-                <Ionicons
-                  name="arrow-down-circle"
-                  size={24}
-                  color={type === 'Ingreso' ? '#FFFFFF' : '#6B7280'}
-                />
-                <Text
-                  style={[
-                    styles.typeButtonText,
-                    type === 'Ingreso' && styles.typeButtonTextActive,
-                  ]}
+                <LinearGradient
+                  colors={
+                    type === t
+                      ? t === 'Ingreso'
+                        ? ['#10B981', '#059669']
+                        : ['#EF4444', '#DC2626']
+                      : ['#F3F4F6', '#F3F4F6']
+                  }
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.typeButtonGradient}
                 >
-                  Ingreso
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
+                  <Ionicons
+                    name={t === 'Ingreso' ? 'arrow-down-circle' : 'arrow-up-circle'}
+                    size={24}
+                    color={type === t ? '#FFFFFF' : '#6B7280'}
+                  />
 
-            <TouchableOpacity
-              style={[
-                styles.typeButton,
-                type === 'Gasto' && styles.typeButtonActive,
-              ]}
-              onPress={() => setType('Gasto')}
-              activeOpacity={0.7}
-            >
-              <LinearGradient
-                colors={
-                  type === 'Gasto'
-                    ? ['#EF4444', '#DC2626']
-                    : ['#F3F4F6', '#F3F4F6']
-                }
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.typeButtonGradient}
-              >
-                <Ionicons
-                  name="arrow-up-circle"
-                  size={24}
-                  color={type === 'Gasto' ? '#FFFFFF' : '#6B7280'}
-                />
-                <Text
-                  style={[
-                    styles.typeButtonText,
-                    type === 'Gasto' && styles.typeButtonTextActive,
-                  ]}
-                >
-                  Gasto
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
+                  <Text style={[styles.typeButtonText, type === t && styles.typeButtonTextActive]}>
+                    {t}
+                  </Text>
+
+                </LinearGradient>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
@@ -220,7 +239,8 @@ export const AddTransactionsScreen = ({ navigation }: any) => {
               keyboardType="numeric"
             />
           </View>
-          {amount && parseFloat(amount.replace(',', '.')) > 0 && (
+
+          {!!amount && parseFloat(amount.replace(',', '.')) > 0 && (
             <Text style={styles.amountPreview}>
               {type === 'Gasto' ? '-' : '+'}$
               {parseFloat(amount.replace(',', '.')).toLocaleString('es-CO')}
@@ -231,22 +251,15 @@ export const AddTransactionsScreen = ({ navigation }: any) => {
         {/* Categoría */}
         <View style={styles.section}>
           <Text style={styles.label}>Categoría</Text>
-          <TouchableOpacity
-            style={styles.categoryButton}
-            onPress={() => setShowCategoryModal(true)}
-            activeOpacity={0.7}
-          >
+          <TouchableOpacity style={styles.categoryButton} onPress={() => setShowCategoryModal(true)}>
             {selectedCategoryObj && (
-              <View
-                style={[
-                  styles.categoryDot,
-                  { backgroundColor: selectedCategoryObj.color || '#9CA3AF' },
-                ]}
-              />
+              <View style={[styles.categoryDot, { backgroundColor: selectedCategoryObj.color || '#9CA3AF' }]} />
             )}
+
             <Text style={styles.categoryButtonText}>
               {selectedCategoryObj?.icon || '📁'} {category || 'Seleccionar'}
             </Text>
+
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </TouchableOpacity>
         </View>
@@ -254,12 +267,10 @@ export const AddTransactionsScreen = ({ navigation }: any) => {
         {/* Fecha */}
         <View style={styles.section}>
           <Text style={styles.label}>Fecha</Text>
-          <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => setShowDatePicker(true)}
-            activeOpacity={0.7}
-          >
+
+          <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
             <Ionicons name="calendar" size={20} color="#1E40AF" />
+
             <Text style={styles.dateButtonText}>
               {date.toLocaleDateString('es-ES', {
                 weekday: 'long',
@@ -269,38 +280,45 @@ export const AddTransactionsScreen = ({ navigation }: any) => {
               })}
             </Text>
           </TouchableOpacity>
+
         </View>
 
         {showDatePicker && (
-          <DateTimePicker
-            value={date}
-            mode="date"
-            display="default"
-            onChange={handleDateChange}
-          />
+          <DateTimePicker value={date} mode="date" display="default" onChange={handleDateChange} />
         )}
 
         {/* Comprobante */}
         <View style={styles.section}>
           <Text style={styles.label}>Comprobante (opcional)</Text>
-          <TouchableOpacity
-            style={styles.imageButton}
-            onPress={handleImageAttach}
-            activeOpacity={0.7}
-          >
+
+          <TouchableOpacity style={styles.imageButton} onPress={handleImageAttach}>
             <Ionicons name="camera" size={20} color="#3B82F6" />
+
             <Text style={styles.imageButtonText}>
               {imageUri ? 'Imagen adjunta' : 'Adjuntar imagen'}
             </Text>
           </TouchableOpacity>
+
+          {/* PREVIEW */}
+          {imageUri && (
+            <View style={{ alignItems: "center", marginTop: 12 }}>
+              <Image
+                source={{ uri: imageUri }}
+                style={{ width: 170, height: 170, borderRadius: 16, resizeMode: "cover" }}
+              />
+
+              <TouchableOpacity onPress={() => setImageUri(null)}>
+                <Text style={{ marginTop: 8, color: "#DC2626", fontWeight: "600" }}>
+                  Quitar imagen
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
         </View>
 
-        {/* Botón guardar */}
-        <TouchableOpacity
-          style={styles.saveButton}
-          onPress={handleSave}
-          activeOpacity={0.8}
-        >
+        {/* Guardar */}
+        <TouchableOpacity style={styles.saveButton} onPress={handleSave} activeOpacity={0.8}>
           <LinearGradient
             colors={['#1E40AF', '#3B82F6']}
             start={{ x: 0, y: 0 }}
@@ -310,9 +328,10 @@ export const AddTransactionsScreen = ({ navigation }: any) => {
             <Text style={styles.saveButtonText}>Guardar {type}</Text>
           </LinearGradient>
         </TouchableOpacity>
+
       </ScrollView>
 
-      {/* Modal de Categorías */}
+      {/* Modal categorías */}
       <Modal
         visible={showCategoryModal}
         transparent
@@ -337,10 +356,7 @@ export const AddTransactionsScreen = ({ navigation }: any) => {
                 categories.map((cat) => (
                   <TouchableOpacity
                     key={cat.id}
-                    style={[
-                      styles.categoryItem,
-                      category === cat.name && styles.categoryItemSelected,
-                    ]}
+                    style={[styles.categoryItem, category === cat.name && styles.categoryItemSelected]}
                     onPress={() => {
                       setCategory(cat.name);
                       setShowCategoryModal(false);
@@ -348,15 +364,11 @@ export const AddTransactionsScreen = ({ navigation }: any) => {
                   >
                     <View style={styles.categoryItemLeft}>
                       <View
-                        style={[
-                          styles.categoryItemDot,
-                          { backgroundColor: cat.color || '#9CA3AF' },
-                        ]}
+                        style={[styles.categoryItemDot, { backgroundColor: cat.color || '#9CA3AF' }]}
                       />
-                      <Text style={styles.categoryItemText}>
-                        {cat.icon || '📁'} {cat.name}
-                      </Text>
+                      <Text style={styles.categoryItemText}>{cat.icon || '📁'} {cat.name}</Text>
                     </View>
+
                     {category === cat.name && (
                       <Ionicons name="checkmark" size={24} color="#1E40AF" />
                     )}
@@ -364,12 +376,16 @@ export const AddTransactionsScreen = ({ navigation }: any) => {
                 ))
               )}
             </ScrollView>
+
           </View>
         </TouchableOpacity>
       </Modal>
+
     </SafeAreaView>
   );
 };
+
+/* ======================= ESTILOS ======================= */
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -423,8 +439,6 @@ const styles = StyleSheet.create({
     color: '#374151',
     marginBottom: 8,
   },
-
-  // Type Selector
   typeSelector: {
     flexDirection: 'row',
     gap: 12,
@@ -440,8 +454,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   typeButtonActive: {
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.25,
   },
   typeButtonGradient: {
     flexDirection: 'row',
@@ -458,8 +471,6 @@ const styles = StyleSheet.create({
   typeButtonTextActive: {
     color: '#FFFFFF',
   },
-
-  // Inputs
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -493,8 +504,6 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     marginTop: 8,
   },
-
-  // Category Button
   categoryButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -515,8 +524,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#111827',
   },
-
-  // Date Button
   dateButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -533,8 +540,6 @@ const styles = StyleSheet.create({
     color: '#111827',
     textTransform: 'capitalize',
   },
-
-  // Image Button
   imageButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -552,8 +557,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#3B82F6',
   },
-
-  // Save Button
   saveButton: {
     marginTop: 16,
     borderRadius: 12,
@@ -576,11 +579,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
-
-  // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalContainer: {
@@ -642,4 +643,6 @@ const styles = StyleSheet.create({
     padding: 24,
     color: '#6B7280',
   },
+
 });
+

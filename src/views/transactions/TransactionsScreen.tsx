@@ -11,6 +11,10 @@ export const TransactionsScreen = ({ navigation }: any) => {
     const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
     const [menuVisible, setMenuVisible] = useState(false);
 
+    // ➕ Nuevo: estado para ver imagen grande
+    const [imageModalVisible, setImageModalVisible] = useState(false);
+    const [imageToView, setImageToView] = useState<string | null>(null);
+
     useFocusEffect(
         React.useCallback(() => {
             loadTransactions();
@@ -75,7 +79,6 @@ export const TransactionsScreen = ({ navigation }: any) => {
         );
     };
 
-    // Calcular totales
     const totals = transactions.reduce(
         (acc, item) => {
             if (item.type === 'Ingreso') {
@@ -104,7 +107,14 @@ export const TransactionsScreen = ({ navigation }: any) => {
                     ]}
                 >
                     {item.image ? (
-                        <Image source={{ uri: item.image }} style={styles.transactionImage} />
+                        <TouchableOpacity
+                            onPress={() => {
+                                setImageToView(item.image);
+                                setImageModalVisible(true);
+                            }}
+                        >
+                            <Image source={{ uri: item.image }} style={styles.transactionImage} />
+                        </TouchableOpacity>
                     ) : (
                         <Text style={styles.transactionEmoji}>
                             {isExpense ? '💸' : '💰'}
@@ -160,7 +170,7 @@ export const TransactionsScreen = ({ navigation }: any) => {
 
     return (
         <SafeAreaView style={styles.safeArea}>
-            {/* Header con gradiente */}
+            {/* HEADER */}
             <LinearGradient
                 colors={['#1E40AF', '#3B82F6']}
                 start={{ x: 0, y: 0 }}
@@ -178,7 +188,7 @@ export const TransactionsScreen = ({ navigation }: any) => {
                 </View>
             </LinearGradient>
 
-            {/* Resumen */}
+            {/* RESUMEN */}
             {transactions.length > 0 && (
                 <View style={styles.summaryContainer}>
                     <View style={styles.summaryCard}>
@@ -205,7 +215,7 @@ export const TransactionsScreen = ({ navigation }: any) => {
                 </View>
             )}
 
-            {/* FAB Button */}
+            {/* BOTÓN AGREGAR */}
             <TouchableOpacity
                 style={styles.fabButton}
                 onPress={() => navigation.navigate('Agregar Transacción')}
@@ -221,7 +231,7 @@ export const TransactionsScreen = ({ navigation }: any) => {
                 </LinearGradient>
             </TouchableOpacity>
 
-            {/* Lista */}
+            {/* LISTA */}
             {loading ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#007AFF" />
@@ -234,33 +244,10 @@ export const TransactionsScreen = ({ navigation }: any) => {
                     keyExtractor={(item) => item.id}
                     contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
-                    ListEmptyComponent={() => (
-                        <View style={styles.emptyContainer}>
-                            <Ionicons name="receipt-outline" size={80} color="#D1D5DB" />
-                            <Text style={styles.emptyTitle}>No hay transacciones</Text>
-                            <Text style={styles.emptySubtitle}>
-                                Comienza a registrar tus ingresos y gastos
-                            </Text>
-                            <TouchableOpacity
-                                style={styles.emptyButton}
-                                onPress={() => navigation.navigate('Agregar Transacción')}
-                            >
-                                <LinearGradient
-                                    colors={['#1E40AF', '#3B82F6']}
-                                    start={{ x: 0, y: 0 }}
-                                    end={{ x: 1, y: 0 }}
-                                    style={styles.emptyButtonGradient}
-                                >
-                                    <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" />
-                                    <Text style={styles.emptyButtonText}>Agregar transacción</Text>
-                                </LinearGradient>
-                            </TouchableOpacity>
-                        </View>
-                    )}
                 />
             )}
 
-            {/* Modal */}
+            {/* === MODAL MENÚ === */}
             <Modal
                 visible={menuVisible}
                 transparent
@@ -348,6 +335,42 @@ export const TransactionsScreen = ({ navigation }: any) => {
                     </View>
                 </TouchableOpacity>
             </Modal>
+
+            {/* === MODAL DE IMAGEN GRANDE === */}
+            <Modal
+                visible={imageModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setImageModalVisible(false)}
+            >
+                <View style={styles.fullscreenOverlay}>
+
+                    {/* Cerrar tocando fuera */}
+                    <TouchableOpacity
+                        style={StyleSheet.absoluteFill}
+                        activeOpacity={1}
+                        onPress={() => setImageModalVisible(false)}
+                    />
+
+                    {/* Imagen centrada */}
+                    <Image
+                        source={{ uri: imageToView! }}
+                        style={styles.fullscreenImage}
+                        resizeMode="contain"
+                    />
+
+                    {/* Botón de cerrar */}
+                    <TouchableOpacity
+                        style={styles.closeButton}
+                        onPress={() => setImageModalVisible(false)}
+                    >
+                        <Ionicons name="close" size={32} color="#fff" />
+                    </TouchableOpacity>
+
+                </View>
+            </Modal>
+
+
         </SafeAreaView>
     );
 };
@@ -393,7 +416,6 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
     },
 
-    // Summary
     summaryContainer: {
         paddingHorizontal: 20,
         paddingTop: 16,
@@ -430,7 +452,6 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
 
-    // FAB
     fabButton: {
         position: 'absolute',
         bottom: 24,
@@ -453,7 +474,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
 
-    // List
     listContent: {
         padding: 20,
         paddingBottom: 100,
@@ -542,7 +562,6 @@ const styles = StyleSheet.create({
         marginLeft: 4,
     },
 
-    // Loading & Empty
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
@@ -553,50 +572,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#6B7280',
     },
-    emptyContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 40,
-        paddingTop: 60,
-    },
-    emptyTitle: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#374151',
-        marginTop: 24,
-        marginBottom: 8,
-    },
-    emptySubtitle: {
-        fontSize: 15,
-        color: '#9CA3AF',
-        textAlign: 'center',
-        lineHeight: 22,
-        marginBottom: 32,
-    },
-    emptyButton: {
-        borderRadius: 12,
-        overflow: 'hidden',
-        shadowColor: '#1E40AF',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 5,
-    },
-    emptyButtonGradient: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 14,
-        paddingHorizontal: 24,
-        gap: 8,
-    },
-    emptyButtonText: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#FFFFFF',
-    },
 
-    // Modal
     modalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -648,6 +624,27 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: 'bold',
     },
+
+    fullscreenOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.95)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    fullscreenImage: {
+        width: '90%',
+        height: '70%',
+        borderRadius: 12,
+    },
+    closeButton: {
+        position: 'absolute',
+        top: 40,
+        right: 20,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        padding: 8,
+        borderRadius: 30,
+    },
+
     menuOptions: {
         paddingHorizontal: 20,
     },

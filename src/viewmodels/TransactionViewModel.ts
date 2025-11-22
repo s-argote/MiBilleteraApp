@@ -1,10 +1,21 @@
 import { useState, useEffect } from 'react';
 import { TransactionService } from '../services/TransactionService';
 import { Transaction } from '../models/Transaction';
+import { ImageService } from "../services/ImageService";
 
 export const useTransactionViewModel = () => {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(true);
+
+    /** Sube una imagen y retorna su URL */
+    const uploadImage = async (uri: string) => {
+        return await ImageService.uploadImage(uri);
+    };
+
+    /** Elimina una imagen del Storage usando su URL */
+    const deleteImageFromStorage = async (url: string) => {
+        return await ImageService.deleteImage(url);
+    };
 
     /**
      * Carga las transacciones del usuario desde Firestore.
@@ -34,13 +45,17 @@ export const useTransactionViewModel = () => {
         }
     };
 
-    /** * Actualiza una transacción existente. */
-    const updateTransaction = async (id: string, transaction:
-        Partial<Transaction>) => {
+    /** Actualiza una transacción existente */
+    const updateTransaction = async (id: string, transaction: Partial<Transaction>) => {
         try {
             await TransactionService.updateTransaction(id, transaction);
-            setTransactions(prev => prev.map(t => (t.id === id ? { ...t, ...transaction } : t)));
-        } catch (error) { console.error("Error al actualizar transacción:", error); throw error; }
+            setTransactions(prev =>
+                prev.map(t => (t.id === id ? { ...t, ...transaction } : t))
+            );
+        } catch (error) {
+            console.error("Error al actualizar transacción:", error);
+            throw error;
+        }
     };
 
     /**
@@ -56,7 +71,7 @@ export const useTransactionViewModel = () => {
         }
     };
 
-    // Cargar transacciones al iniciar
+    // Cargar al iniciar
     useEffect(() => {
         loadTransactions();
     }, []);
@@ -68,5 +83,7 @@ export const useTransactionViewModel = () => {
         updateTransaction,
         deleteTransaction,
         loadTransactions,
+        uploadImage,
+        deleteImageFromStorage
     };
 };
