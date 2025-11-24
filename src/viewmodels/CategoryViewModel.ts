@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { CategoryService } from '../services/CategoryService';
 import { TransactionService } from '../services/TransactionService';
+import { BudgetService } from '../services/BudgetService';
 
 // Normalizador robusto
 const normalize = (text: string) =>
@@ -53,11 +54,35 @@ export const useCategoryViewModel = () => {
         }
     };
 
-    // Eliminar categoría + transacciones asociadas
+    // Eliminar categoría + transacciones + presupuesto
     const deleteCategory = async (id: string) => {
         try {
+            // 1. Eliminar transacciones asociadas
             await TransactionService.deleteTransactionsByCategory(id);
+
+            // 2. Obtener el mes actual para actualizar el presupuesto
+            const now = new Date();
+            const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+            // 3. Obtener el presupuesto actual
+            const currentBudget = await BudgetService.getBudgetForMonth(currentMonth);
+
+            // 4. Eliminar la categoría de la base de datos
             await CategoryService.deleteCategory(id);
+
+            // 5. Si existe un presupuesto, eliminar la categoría del presupuesto
+            if (currentBudget) {
+                const { categoryBudgets = {} } = currentBudget;
+                const updatedBudgets = { ...categoryBudgets };
+                delete updatedBudgets[id]; //  Elimina la categoría del presupuesto
+
+                await BudgetService.setBudgetForMonth(currentMonth, {
+                    monthlyBudget: currentBudget.monthlyBudget || 0,
+                    categoryBudgets: updatedBudgets,
+                });
+            }
+
+            // 6. Recargar la lista de categorías
             await loadCategories();
         } catch (error) {
             console.error("Error al eliminar categoría:", error);

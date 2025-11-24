@@ -4,7 +4,6 @@ import { AccountScreen } from '../views/account/AccountScreen';
 import { ProfileScreen } from '../views/account/ProfileScreen';
 import { BudgetsScreen } from '../views/account/BudgetsScreen';
 import { HistoryScreen } from '../views/account/HistoryScreen';
-import { ChangeEmailScreen } from '../views/auth/ChangeEmailScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -18,18 +17,9 @@ export const AccountStack = () => {
                     title: 'Mi Cuenta',
                     headerBackTitle: 'Volver',
                 }} />
-            <Stack.Screen
-                name="Actualizar Correo"
-                component={ChangeEmailScreen}
-                options={{
-                    headerShown: true,
-                    title: "Actualizar Correo",
-                    headerBackTitle: "Volver"
-                }}
-            />
             <Stack.Screen name="Alertas y Metas" component={BudgetsScreen}
                 options={{
-                    headerShown: true,
+                    headerShown: false,
                     title: 'Alertas y Metas',
                     headerBackTitle: 'Volver',
                 }} />

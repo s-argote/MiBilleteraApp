@@ -23,6 +23,8 @@ export const AddTransactionsScreen = ({ navigation }: any) => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
 
   const formatLocalDate = (d: Date) => {
     const year = d.getFullYear();
@@ -92,19 +94,26 @@ export const AddTransactionsScreen = ({ navigation }: any) => {
   };
 
   const handleSave = async () => {
+
+    if (saving) return; // evita doble click
+    setSaving(true);
+
     const cleanAmount = amount.replace(',', '.');
     const parsedAmount = parseFloat(cleanAmount);
 
     if (!title.trim()) {
       Alert.alert('Campo requerido', 'Por favor ingresa un título.');
+      setSaving(false);
       return;
     }
     if (!amount.trim() || isNaN(parsedAmount) || parsedAmount <= 0) {
       Alert.alert('Monto inválido', 'Ingresa un monto válido mayor a 0.');
+      setSaving(false);
       return;
     }
     if (!category) {
       Alert.alert('Categoría requerida', 'Selecciona una categoría.');
+      setSaving(false);
       return;
     }
 
@@ -113,10 +122,10 @@ export const AddTransactionsScreen = ({ navigation }: any) => {
       const user = auth.currentUser;
       if (!user) {
         Alert.alert('Error', 'No se pudo obtener el usuario.');
+        setSaving(false);
         return;
       }
 
-      //  Subir imagen a Firebase Storage antes de guardar
       let uploadedUrl = "";
       if (imageUri) {
         uploadedUrl = await uploadImage(imageUri);
@@ -139,14 +148,24 @@ export const AddTransactionsScreen = ({ navigation }: any) => {
       Alert.alert(
         '¡Guardado!',
         `${type} registrado exitosamente.`,
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              setSaving(false);
+              navigation.goBack();
+            }
+          }
+        ]
       );
 
     } catch (error) {
       console.error('Error:', error);
       Alert.alert('Error', 'No se pudo guardar. Inténtalo de nuevo.');
+      setSaving(false);
     }
   };
+
 
   const selectedCategoryObj = categories.find((c) => c.name === category);
 
@@ -318,16 +337,29 @@ export const AddTransactionsScreen = ({ navigation }: any) => {
         </View>
 
         {/* Guardar */}
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={[styles.saveButton, saving && { opacity: 0.6 }]}
+          onPress={handleSave}
+          disabled={saving}
+          activeOpacity={0.8}
+        >
           <LinearGradient
-            colors={['#1E40AF', '#3B82F6']}
+            colors={saving ? ['#9CA3AF', '#9CA3AF'] : ['#1E40AF', '#3B82F6']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.saveButtonGradient}
           >
-            <Text style={styles.saveButtonText}>Guardar {type}</Text>
+            {saving ? (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Ionicons name="hourglass-outline" size={20} color="#FFF" />
+                <Text style={styles.saveButtonText}>Guardando...</Text>
+              </View>
+            ) : (
+              <Text style={styles.saveButtonText}>Guardar {type}</Text>
+            )}
           </LinearGradient>
         </TouchableOpacity>
+
 
       </ScrollView>
 

@@ -30,6 +30,8 @@ export const EditTransactionsScreen = ({ navigation, route }: any) => {
 
   const [imageUri, setImageUri] = useState<string | null>(transaction.image || null);
   const [newImageUri, setNewImageUri] = useState<string | null>(null); // nueva imagen a subir
+  const [saving, setSaving] = useState(false);
+
 
   const formatLocalDate = (d: Date) => {
     const year = d.getFullYear();
@@ -119,26 +121,29 @@ export const EditTransactionsScreen = ({ navigation, route }: any) => {
   ============================== */
 
   const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
+
     const cleanAmount = amount.replace(',', '.');
     const parsedAmount = parseFloat(cleanAmount);
 
     if (!title.trim()) {
       Alert.alert('Campo requerido', 'Por favor ingresa un título.');
+      setSaving(false);
       return;
     }
+
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
       Alert.alert('Monto inválido', 'Ingresa un monto válido mayor a 0.');
+      setSaving(false);
       return;
     }
 
     try {
       let finalImageUrl = imageUri;
 
-      // Si hay una nueva imagen, la subimos
       if (newImageUri) {
-        if (imageUri) {
-          await deleteImageFromStorage(imageUri);
-        }
+        if (imageUri) await deleteImageFromStorage(imageUri);
         finalImageUrl = await uploadImage(newImageUri);
       }
 
@@ -155,17 +160,17 @@ export const EditTransactionsScreen = ({ navigation, route }: any) => {
 
       await updateTransaction(transaction.id, updated);
 
-      Alert.alert(
-        "¡Actualizado!",
-        "La transacción se modificó correctamente.",
-        [{ text: "OK", onPress: () => navigation.goBack() }]
-      );
+      Alert.alert("¡Actualizado!", "La transacción se modificó correctamente.", [
+        { text: "OK", onPress: () => navigation.goBack() },
+      ]);
 
     } catch (error) {
-      console.error(error);
       Alert.alert("Error", "No se pudo actualizar la transacción.");
     }
+
+    setSaving(false);
   };
+
 
   const selectedCategoryObj = categories.find((c) => c.name === category);
 
@@ -325,14 +330,30 @@ export const EditTransactionsScreen = ({ navigation, route }: any) => {
         </View>
 
         {/* GUARDAR */}
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+        <TouchableOpacity
+          style={[
+            styles.saveButton,
+            saving && { opacity: 0.6 }
+          ]}
+          onPress={handleSave}
+          activeOpacity={saving ? 1 : 0.7}
+          disabled={saving}
+        >
           <LinearGradient
-            colors={['#1E40AF', '#3B82F6']}
+            colors={saving ? ['#9CA3AF', '#6B7280'] : ['#1E40AF', '#3B82F6']}
             style={styles.saveButtonGradient}
           >
-            <Text style={styles.saveButtonText}>Guardar Cambios</Text>
+            {saving ? (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Ionicons name="hourglass-outline" size={20} color="#FFF" />
+                <Text style={styles.saveButtonText}>Guardando...</Text>
+              </View>
+            ) : (
+              <Text style={styles.saveButtonText}>Guardar Cambios</Text>
+            )}
           </LinearGradient>
         </TouchableOpacity>
+
 
       </ScrollView>
 

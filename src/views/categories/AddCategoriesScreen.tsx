@@ -40,6 +40,8 @@ export const AddCategoriesScreen = ({ navigation }: any) => {
     const [scaleAnim] = useState(new Animated.Value(1));
 
     const { addCategory } = useCategoryViewModel();
+    const [saving, setSaving] = useState(false);
+
 
     const handleColorPress = (selectedColor: string) => {
         setColor(selectedColor);
@@ -58,8 +60,12 @@ export const AddCategoriesScreen = ({ navigation }: any) => {
     };
 
     const handleSave = async () => {
+        if (saving) return;
+        setSaving(true);
+
         if (!name.trim()) {
             Alert.alert('Nombre requerido', 'Por favor ingresa un nombre para la categoría.');
+            setSaving(false);
             return;
         }
 
@@ -70,7 +76,10 @@ export const AddCategoriesScreen = ({ navigation }: any) => {
         } catch (error: any) {
             Alert.alert('Error', error.message || 'No se pudo guardar la categoría.');
         }
+
+        setSaving(false);
     };
+
 
     return (
         <SafeAreaView edges={['left', 'right', 'bottom', 'top']} style={styles.safeArea}>
@@ -200,19 +209,21 @@ export const AddCategoriesScreen = ({ navigation }: any) => {
             {/* Botones de acción */}
             <View style={styles.buttonContainer}>
                 <TouchableOpacity
-                    style={styles.saveButton}
+                    style={[styles.saveButton, saving && { opacity: 0.6 }]}
                     onPress={handleSave}
-                    activeOpacity={0.8}
+                    activeOpacity={saving ? 1 : 0.7}
+                    disabled={saving}
                 >
                     <LinearGradient
-                        colors={[color, adjustColorBrightness(color, -20)]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
+                        colors={saving ? ['#9CA3AF', '#6B7280'] : [color, adjustColorBrightness(color, -20)]}
                         style={styles.saveButtonGradient}
                     >
-                        <Text style={styles.saveButtonText}>Guardar Categoría</Text>
+                        <Text style={styles.saveButtonText}>
+                            {saving ? "Guardando..." : "Guardar Categoría"}
+                        </Text>
                     </LinearGradient>
                 </TouchableOpacity>
+
             </View>
         </SafeAreaView>
     );

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -10,6 +10,13 @@ const screenWidth = Dimensions.get("window").width;
 
 export const FinancialDetailScreen = ({ navigation }: any) => {
     const { monthlyStats } = useDashboardViewModel();
+
+    const [tooltip, setTooltip] = useState<{
+        x: number;
+        y: number;
+        value: number | null;
+        label: string;
+    } | null>(null);
 
     if (!monthlyStats) {
         return (
@@ -28,9 +35,9 @@ export const FinancialDetailScreen = ({ navigation }: any) => {
 
     return (
         <SafeAreaView style={styles.container}>
-            {/* Header con gradiente */}
+            {/* Header */}
             <LinearGradient
-                colors={['#1E40AF', '#3B82F6']}
+                colors={["#1E40AF", "#3B82F6"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.header}
@@ -41,8 +48,10 @@ export const FinancialDetailScreen = ({ navigation }: any) => {
                 >
                     <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
                 </TouchableOpacity>
+
                 <Ionicons name="analytics" size={28} color="#FFFFFF" />
                 <Text style={styles.headerTitle}>Resumen Financiero</Text>
+
                 <View style={styles.headerRight} />
             </LinearGradient>
 
@@ -50,15 +59,14 @@ export const FinancialDetailScreen = ({ navigation }: any) => {
                 contentContainerStyle={styles.content}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Balance Principal Card */}
+                {/* Balance Principal */}
                 <View style={styles.balanceCard}>
                     <LinearGradient
-                        colors={balanceIsPositive
-                            ? ['#10B981', '#059669']
-                            : ['#EF4444', '#DC2626']
+                        colors={
+                            balanceIsPositive
+                                ? ["#10B981", "#059669"]
+                                : ["#EF4444", "#DC2626"]
                         }
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
                         style={styles.balanceGradient}
                     >
                         <View style={styles.balanceHeader}>
@@ -71,17 +79,23 @@ export const FinancialDetailScreen = ({ navigation }: any) => {
                             </View>
                             <Text style={styles.balanceLabel}>Balance del Mes</Text>
                         </View>
+
                         <Text style={styles.balanceAmount}>
                             ${monthlyStats.balance.toLocaleString("es-CO")}
                         </Text>
+
                         <View style={styles.balanceFooter}>
                             <Ionicons
-                                name={balanceIsPositive ? "arrow-up-circle" : "arrow-down-circle"}
+                                name={
+                                    balanceIsPositive
+                                        ? "arrow-up-circle"
+                                        : "arrow-down-circle"
+                                }
                                 size={16}
                                 color="rgba(255,255,255,0.8)"
                             />
                             <Text style={styles.balanceStatus}>
-                                {balanceIsPositive ? 'Balance positivo' : 'Balance negativo'}
+                                {balanceIsPositive ? "Balance positivo" : "Balance negativo"}
                             </Text>
                         </View>
                     </LinearGradient>
@@ -89,50 +103,59 @@ export const FinancialDetailScreen = ({ navigation }: any) => {
 
                 {/* Stats Grid */}
                 <View style={styles.statsGrid}>
-                    {/* Ingresos Card */}
                     <View style={styles.statCard}>
                         <View style={styles.statHeader}>
-                            <View style={[styles.statIconContainer, { backgroundColor: '#DCFCE7' }]}>
-                                <Ionicons name="arrow-down-circle" size={24} color="#16A34A" />
+                            <View
+                                style={[
+                                    styles.statIconContainer,
+                                    { backgroundColor: "#DCFCE7" },
+                                ]}
+                            >
+                                <Ionicons
+                                    name="arrow-down-circle"
+                                    size={24}
+                                    color="#16A34A"
+                                />
                             </View>
                         </View>
                         <Text style={styles.statLabel}>Ingresos</Text>
-                        <Text style={[styles.statValue, { color: '#16A34A' }]}>
+                        <Text style={[styles.statValue, { color: "#16A34A" }]}>
                             ${monthlyStats.totalIncome.toLocaleString("es-CO")}
                         </Text>
-                        <View style={styles.statBadge}>
-                            <Ionicons name="trending-up" size={12} color="#16A34A" />
-                            <Text style={styles.statBadgeText}>Total</Text>
-                        </View>
                     </View>
 
-                    {/* Gastos Card */}
                     <View style={styles.statCard}>
                         <View style={styles.statHeader}>
-                            <View style={[styles.statIconContainer, { backgroundColor: '#FEE2E2' }]}>
-                                <Ionicons name="arrow-up-circle" size={24} color="#EF4444" />
+                            <View
+                                style={[
+                                    styles.statIconContainer,
+                                    { backgroundColor: "#FEE2E2" },
+                                ]}
+                            >
+                                <Ionicons
+                                    name="arrow-up-circle"
+                                    size={24}
+                                    color="#EF4444"
+                                />
                             </View>
                         </View>
                         <Text style={styles.statLabel}>Gastos</Text>
-                        <Text style={[styles.statValue, { color: '#EF4444' }]}>
+                        <Text style={[styles.statValue, { color: "#EF4444" }]}>
                             ${monthlyStats.totalExpenses.toLocaleString("es-CO")}
                         </Text>
-                        <View style={styles.statBadge}>
-                            <Ionicons name="trending-down" size={12} color="#EF4444" />
-                            <Text style={styles.statBadgeText}>Total</Text>
-                        </View>
                     </View>
                 </View>
 
-                {/* Chart Section */}
+                {/* Chart */}
                 <View style={styles.chartSection}>
                     <View style={styles.chartHeader}>
                         <View style={styles.chartTitleContainer}>
                             <View style={styles.chartIconContainer}>
-                                <Ionicons name="stats-chart" size={10} color="#1E40AF" />
+                                <Ionicons name="stats-chart" size={16} color="#1E40AF" />
                             </View>
                             <Text style={styles.chartTitle}>Gastos por Día</Text>
                         </View>
+
                         <View style={styles.chartBadge}>
                             <View style={styles.chartBadgeDot} />
                             <Text style={styles.chartBadgeText}>Últimos 30 días</Text>
@@ -147,28 +170,58 @@ export const FinancialDetailScreen = ({ navigation }: any) => {
                             chartConfig={chartConfig}
                             bezier
                             style={styles.chart}
-                            withInnerLines={true}
-                            withOuterLines={true}
-                            withVerticalLines={false}
-                            withHorizontalLines={true}
-                            withVerticalLabels={true}
-                            withHorizontalLabels={true}
-                            withDots={true}
-                            withShadow={false}
                             fromZero={true}
+                            withDots={true}
+                            yAxisLabel="$"
+                            onDataPointClick={(point) => {
+                                setTooltip({
+                                    x: point.x,
+                                    y: point.y,
+                                    value: point.value,
+                                    label: `${monthlyStats.lineChart.labels[point.index]}`,
+                                });
+
+                                setTimeout(() => setTooltip(null), 3000);
+                            }}
                         />
+
+                        {/* Tooltip */}
+                        {tooltip && (
+                            <View
+                                style={[
+                                    styles.tooltip,
+                                    {
+                                        left: Math.max(
+                                            10,
+                                            Math.min(tooltip.x - 50, screenWidth - 120)
+                                        ),
+                                        top: tooltip.y - 55,
+                                    },
+                                ]}
+                            >
+                                <Text style={styles.tooltipLabel}>{tooltip.label}</Text>
+                                <Text style={styles.tooltipValue}>
+                                    ${tooltip.value?.toLocaleString("es-CO")}
+                                </Text>
+                            </View>
+                        )}
                     </View>
                 </View>
 
                 {/* Info Card */}
                 <View style={styles.infoCard}>
                     <View style={styles.infoIconContainer}>
-                        <Ionicons name="information-circle" size={20} color="#3B82F6" />
+                        <Ionicons
+                            name="information-circle"
+                            size={20}
+                            color="#3B82F6"
+                        />
                     </View>
                     <View style={styles.infoContent}>
                         <Text style={styles.infoTitle}>Resumen Mensual</Text>
                         <Text style={styles.infoText}>
-                            El gráfico muestra la evolución de tus gastos durante el mes actual.
+                            El gráfico muestra la evolución de tus gastos durante el mes
+                            actual.
                         </Text>
                     </View>
                 </View>
@@ -183,33 +236,23 @@ const chartConfig = {
     backgroundGradientTo: "#FFFFFF",
     decimalPlaces: 0,
     color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(107, 114, 128, ${opacity})`,
-    style: {
-        borderRadius: 16,
+    labelColor: () => "#000000", // 👈 ETIQUETAS DE EJES EN NEGRO
+    propsForLabels: {
+        fontSize: 7,
+        fontWeight: "bold",
+        fill: "#000000",
     },
     propsForDots: {
         r: "5",
         strokeWidth: "2",
         stroke: "#3B82F6",
-        fill: "#FFFFFF"
-    },
-    propsForBackgroundLines: {
-        strokeDasharray: "",
-        stroke: "#E5E7EB",
-        strokeWidth: 1
-    },
-    propsForLabels: {
-        fontFamily: 'System',
-        fontWeight: 'bold',
-        fontSize: 6,
-        fill: '#000'
     },
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#F9FAFB"
+        backgroundColor: "#F9FAFB",
     },
 
     // Loading
@@ -235,50 +278,38 @@ const styles = StyleSheet.create({
 
     // Header
     header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
         paddingHorizontal: 16,
         paddingVertical: 16,
-        shadowColor: '#1E40AF',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 5,
     },
     backButton: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-        justifyContent: 'center',
-        alignItems: 'center',
+        backgroundColor: "rgba(255,255,255,0.2)",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    headerTitle: {
+        fontSize: 22,
+        fontWeight: "bold",
+        color: "#FFFFFF",
     },
     headerRight: {
         width: 40,
     },
-    headerTitle: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#FFFFFF',
-    },
 
-    // Content
     content: {
         padding: 20,
-        paddingBottom: 40,
     },
 
-    // Balance Card
+    // Balance
     balanceCard: {
         borderRadius: 20,
         overflow: "hidden",
         marginBottom: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-        elevation: 5,
     },
     balanceGradient: {
         padding: 24,
@@ -293,14 +324,13 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: 24,
-        backgroundColor: "rgba(255, 255, 255, 0.25)",
+        backgroundColor: "rgba(255,255,255,0.25)",
         justifyContent: "center",
         alignItems: "center",
     },
     balanceLabel: {
         fontSize: 16,
-        color: "rgba(255, 255, 255, 0.9)",
-        fontWeight: "600",
+        color: "#FFFFFF",
     },
     balanceAmount: {
         fontSize: 36,
@@ -315,11 +345,10 @@ const styles = StyleSheet.create({
     },
     balanceStatus: {
         fontSize: 14,
-        color: "rgba(255, 255, 255, 0.8)",
-        fontWeight: "500",
+        color: "rgba(255,255,255,0.9)",
     },
 
-    // Stats Grid
+    // Stats
     statsGrid: {
         flexDirection: "row",
         gap: 12,
@@ -330,11 +359,6 @@ const styles = StyleSheet.create({
         backgroundColor: "#FFFFFF",
         padding: 16,
         borderRadius: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 3,
     },
     statHeader: {
         marginBottom: 12,
@@ -349,23 +373,11 @@ const styles = StyleSheet.create({
     statLabel: {
         fontSize: 13,
         color: "#6B7280",
-        fontWeight: "500",
-        marginBottom: 6,
     },
     statValue: {
         fontSize: 20,
         fontWeight: "bold",
         marginBottom: 8,
-    },
-    statBadge: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 4,
-    },
-    statBadgeText: {
-        fontSize: 11,
-        color: "#9CA3AF",
-        fontWeight: "500",
     },
 
     // Chart Section
@@ -374,11 +386,6 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         padding: 20,
         marginBottom: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 3,
     },
     chartHeader: {
         flexDirection: "row",
@@ -394,35 +401,15 @@ const styles = StyleSheet.create({
     chartIconContainer: {
         width: 36,
         height: 36,
-        borderRadius: 18,
         backgroundColor: "#EEF2FF",
         justifyContent: "center",
         alignItems: "center",
+        borderRadius: 18,
     },
     chartTitle: {
         fontSize: 18,
         fontWeight: "700",
         color: "#111827",
-    },
-    chartBadge: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: "#F3F4F6",
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 12,
-        gap: 6,
-    },
-    chartBadgeDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: "#3B82F6",
-    },
-    chartBadgeText: {
-        fontSize: 11,
-        color: "#000",
-        fontWeight: "600",
     },
     chartContainer: {
         alignItems: "center",
@@ -431,6 +418,42 @@ const styles = StyleSheet.create({
     chart: {
         borderRadius: 16,
     },
+    chartBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+    },
+    chartBadgeDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+    },
+    chartBadgeText: {
+        fontSize: 12,
+        color: "#6B7280",
+    },
+
+    // Tooltip
+    tooltip: {
+        position: "absolute",
+        backgroundColor: "#1E40AF",
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 8,
+        minWidth: 110,
+        zIndex: 10,
+        elevation: 5,
+    },
+    tooltipLabel: {
+        color: "#FFFFFF",
+        fontSize: 12,
+        fontWeight: "600",
+    },
+    tooltipValue: {
+        color: "#FFFFFF",
+        fontSize: 14,
+        fontWeight: "bold",
+    },
 
     // Info Card
     infoCard: {
@@ -438,14 +461,12 @@ const styles = StyleSheet.create({
         backgroundColor: "#EEF2FF",
         padding: 16,
         borderRadius: 12,
-        gap: 12,
         marginBottom: 20,
-        borderLeftWidth: 4,
+        gap: 12,
         borderLeftColor: "#3B82F6",
+        borderLeftWidth: 4,
     },
-    infoIconContainer: {
-        marginTop: 2,
-    },
+    infoIconContainer: {},
     infoContent: {
         flex: 1,
     },
@@ -453,51 +474,10 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: "700",
         color: "#1E40AF",
-        marginBottom: 4,
     },
     infoText: {
         fontSize: 13,
         color: "#4B5563",
         lineHeight: 18,
-    },
-
-    // Action Buttons
-    actionButtons: {
-        gap: 12,
-    },
-    primaryButton: {
-        borderRadius: 12,
-        overflow: "hidden",
-        shadowColor: '#1E40AF',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 5,
-    },
-    primaryButtonGradient: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        paddingVertical: 16,
-        gap: 10,
-    },
-    primaryButtonText: {
-        color: "#FFFFFF",
-        fontSize: 16,
-        fontWeight: "bold",
-    },
-    secondaryButton: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 16,
-        backgroundColor: "#F3F4F6",
-        borderRadius: 12,
-        gap: 8,
-    },
-    secondaryButtonText: {
-        color: "#374151",
-        fontSize: 16,
-        fontWeight: "600",
     },
 });

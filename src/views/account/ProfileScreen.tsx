@@ -111,21 +111,6 @@ export const ProfileScreen = ({ navigation }: any) => {
                            />
                         </View>
                      </View>
-
-                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Correo electrónico</Text>
-                        <View style={[styles.inputContainer, styles.disabledInput]}>
-                           <Ionicons name="mail-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                           <Text style={styles.disabledText}>{profile?.email || ""}</Text>
-                        </View>
-                        <TouchableOpacity
-                           onPress={() => navigation.navigate("Actualizar Correo")}
-                           style={styles.changeEmailButton}
-                        >
-                           <Text style={styles.changeEmailText}>Cambiar correo</Text>
-                           <Ionicons name="chevron-forward" size={16} color="#007AFF" />
-                        </TouchableOpacity>
-                     </View>
                   </View>
                </View>
 
@@ -230,7 +215,7 @@ export const ProfileScreen = ({ navigation }: any) => {
                <View style={styles.infoCard}>
                   <Ionicons name="information-circle-outline" size={24} color="#3B82F6" />
                   <Text style={styles.infoText}>
-                     Tus datos están protegidos y encriptados. Solo tú tienes acceso a esta información.
+                     Tus datos están protegidos. Solo tú tienes acceso a esta información.
                   </Text>
                </View>
 

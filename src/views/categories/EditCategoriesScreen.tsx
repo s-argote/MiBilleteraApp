@@ -37,6 +37,8 @@ const adjustColorBrightness = (hex: string, percent: number): string => {
 export const EditCategoriesScreen = ({ route, navigation }: any) => {
     const { category } = route.params;
     const { updateCategory } = useCategoryViewModel();
+    const [saving, setSaving] = useState(false);
+
 
     const [name, setName] = useState(category.name);
     const [color, setColor] = useState(category.color);
@@ -51,8 +53,12 @@ export const EditCategoriesScreen = ({ route, navigation }: any) => {
     };
 
     const handleSave = async () => {
+        if (saving) return;
+        setSaving(true);
+
         if (!name.trim()) {
             Alert.alert('Nombre requerido', 'Por favor ingresa un nombre para la categoría.');
+            setSaving(false);
             return;
         }
 
@@ -63,7 +69,10 @@ export const EditCategoriesScreen = ({ route, navigation }: any) => {
         } catch (error: any) {
             Alert.alert('Error', error.message || 'No se pudo actualizar la categoría.');
         }
+
+        setSaving(false);
     };
+
 
     return (
         <SafeAreaView edges={['left', 'right', 'bottom', 'top']} style={styles.safeArea}>
@@ -188,16 +197,22 @@ export const EditCategoriesScreen = ({ route, navigation }: any) => {
 
             {/* Botón Guardar */}
             <View style={styles.buttonContainer}>
-                <TouchableOpacity style={styles.saveButton} onPress={handleSave} activeOpacity={0.8}>
+                <TouchableOpacity
+                    style={[styles.saveButton, saving && { opacity: 0.6 }]}
+                    onPress={handleSave}
+                    activeOpacity={saving ? 1 : 0.7}
+                    disabled={saving}
+                >
                     <LinearGradient
-                        colors={[color, adjustColorBrightness(color, -20)]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
+                        colors={saving ? ['#9CA3AF', '#6B7280'] : [color, adjustColorBrightness(color, -20)]}
                         style={styles.saveButtonGradient}
                     >
-                        <Text style={styles.saveButtonText}>Guardar Cambios</Text>
+                        <Text style={styles.saveButtonText}>
+                            {saving ? "Guardando..." : "Guardar Cambios"}
+                        </Text>
                     </LinearGradient>
                 </TouchableOpacity>
+
             </View>
         </SafeAreaView>
     );
